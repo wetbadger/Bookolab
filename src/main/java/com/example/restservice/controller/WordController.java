@@ -1,7 +1,7 @@
 package com.example.restservice.controller;
 
 import com.example.restservice.model.Word;
-import com.example.restservice.repository.CourseRepository;
+import com.example.restservice.repository.WordRepository;
 import org.jspecify.annotations.NullMarked;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,51 +16,57 @@ import java.util.List;
 @NullMarked // Spring Boot 4 standard for compile-time null safety
 public class WordController {
 
-    private final CourseRepository courseRepository;
+    private final WordRepository wordRepository;
 
     // Constructor injection is the recommended best practice
-    public WordController(CourseRepository courseRepository) {
-        this.courseRepository = courseRepository;
+    public WordController(WordRepository repo) {
+        this.wordRepository = repo;
     }
 
-    // GET all courses
+    // GET all words
     @GetMapping
     public List<Word> getAllCourses() {
-        return courseRepository.findAll();
+        return wordRepository.findAll();
     }
 
-    // GET a single course by ID
+    // GET a single word by ID
     @GetMapping("/{id}")
-    public Word getCourseById(@PathVariable Long id) {
-        return courseRepository.findById(id)
+    public Word getWordById(@PathVariable Long id) {
+        return wordRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found"));
     }
 
-    // POST create a new course
+    // POST create a new word
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Word createCourse(@RequestBody Word course) {
-        return courseRepository.save(course);
+    public Word createCourse(@RequestBody Word word) {
+        return wordRepository.save(word);
     }
 
-    // PUT update an existing course
+    // PUT update an existing word
     @PutMapping("/{id}")
-    public Word updateCourse(@PathVariable Long id, @RequestBody Word courseDetails) {
-        return courseRepository.findById(id)
-                .map(existingCourse -> {
-                    existingCourse.setContent(courseDetails.getContent());
-                    return courseRepository.save(existingCourse);
+    public Word updateCourse(@PathVariable Long id, @RequestBody Word wordDetails) {
+        return wordRepository.findById(id)
+                .map(existingWord -> {
+                    existingWord.setContent(wordDetails.getContent());
+                    
+                    // CRITICAL: Map the nextWord relationship as well
+                    if (wordDetails.getNextWord() != null) {
+                        existingWord.setNextWord(wordDetails.getNextWord());
+                    }
+                    
+                    return wordRepository.save(existingWord);
                 })
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Word not found"));
     }
 
-    // DELETE a course
+    // DELETE a word
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteCourse(@PathVariable Long id) {
-        if (!courseRepository.existsById(id)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found");
+        if (!wordRepository.existsById(id)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Word not found");
         }
-        courseRepository.deleteById(id);
+        wordRepository.deleteById(id);
         return ResponseEntity.noContent().build();
     }
 }

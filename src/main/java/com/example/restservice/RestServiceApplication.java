@@ -13,7 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestClient;
 
 import com.example.restservice.model.Word;
-import com.example.restservice.repository.CourseRepository;
+import com.example.restservice.repository.WordRepository;
 
 @SpringBootApplication
 public class RestServiceApplication implements CommandLineRunner {
@@ -21,7 +21,7 @@ public class RestServiceApplication implements CommandLineRunner {
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
     @Autowired
-    private CourseRepository courseRepository;
+    private WordRepository wordRepository;
 
     // 1. Define the missing bean so Spring can find it anywhere in your app
     @Bean
@@ -36,8 +36,8 @@ public class RestServiceApplication implements CommandLineRunner {
     @Override
     public void run(String... args) throws Exception {
         // Querying the DB directly works fine at startup
-        Optional<Word> course = courseRepository.findById(10001L);
-        logger.info("Course 10001 -> {}", course);
+        Optional<Word> firstWord = wordRepository.findById(10001L);
+        logger.info("Course 10001 -> {}", firstWord);
 
         // 2. Build the RestClient locally using the bean we defined above
         RestClient restClient = restClientBuilder().baseUrl("http://localhost:8080").build();
@@ -53,25 +53,43 @@ public class RestServiceApplication implements CommandLineRunner {
             logger.error(e.getMessage());
         }
 
-try {
-    Word newWord = new Word("yeet");
-    
-    // Capture the returned object from the server, which WILL have the generated ID
-    Word savedWord = restClient.post()
-              .uri("/api/words")
-              .contentType(MediaType.APPLICATION_JSON)
-              .body(newWord)
-              .retrieve()
-              .body(Word.class); // <-- Expect a Word object back
+        try {
+            Word newWord = new Word("yeet");
+            firstWord.ifPresent(x -> x.setNextWord(newWord));
+            
+            // Capture the returned object from the server, which WILL have the generated ID
+            Word savedWord = restClient.post()
+                    .uri("/api/words")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(newWord)
+                    .retrieve()
+                    .body(Word.class); // <-- Expect a Word object back
 
-    if (savedWord != null && savedWord.getId() != null) {
-        logger.info(savedWord.getId().toString());
-    } else {
-        logger.warn("Server saved the word but didn't return an ID.");
-    }
-} catch (Exception e) {
-    logger.error("Error during POST request: ", e);
-}
+            // Ensure the word exists, then pull it out of the Optional wrapper
+            Word wordToUpdate = firstWord.orElseThrow(() -> new RuntimeException("Course 10001 not found"));
+
+            logger.info("HERE");
+            // This will now send the properly formed Word object JSON
+            Word savedFirstWord = restClient.put()
+                    .uri("/api/words/10001")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(wordToUpdate) // <-- Fixed: Passing the raw Word object
+                    .retrieve()
+                    .body(Word.class);
+
+            if (savedWord != null && savedWord.getId() != null) {
+                logger.info(savedWord.getId().toString());
+            } else {
+                logger.warn("Server saved the word but didn't return an ID.");
+            }
+            if (savedFirstWord != null && savedFirstWord.getId() != null) {
+                logger.info(savedFirstWord.getId().toString());
+            } else {
+                logger.warn("Server saved the word but didn't return an ID.");
+            }
+        } catch (Exception e) {
+            logger.error("Error during POST request: ", e);
+        }
 
         try {
             String response = restClient.get()
@@ -83,5 +101,16 @@ try {
         } catch (Exception e) {
             logger.error(e.getMessage());
         }
+
+        try {
+            String response = restClient.get()
+                    .uri("/api/words/10001")
+                    .retrieve()
+                    .body(String.class);
+
+            logger.info("API Response: " + response);
+        } catch (Exception e) {
+            logger.error(e.getMessage());
+        }
     }
-} 
+}
