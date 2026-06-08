@@ -35,10 +35,15 @@ public class WordService {
         Word word = wordRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Word not found"));
         
-        // Safe null-check for the linked list tail
+        // Find next ID safely
         Long nextWordId = (word.getNextWord() != null) ? word.getNextWord().getId() : null;
         
-        return new FlatLinkedWordDto(word.getId(), word.getContent(), nextWordId);
+        // Look up previous ID efficiently using the repository query
+        Long previousWordId = wordRepository.findByNextWord(word)
+                .map(Word::getId)
+                .orElse(null); // Returns null if this word is the head of the list
+        
+        return new FlatLinkedWordDto(word.getId(), word.getContent(), nextWordId, previousWordId);
     }
 
     /*

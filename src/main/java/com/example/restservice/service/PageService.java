@@ -7,6 +7,8 @@ import com.example.restservice.dto.WordNodeDto;
 import com.example.restservice.model.Page;
 import com.example.restservice.model.Word;
 import com.example.restservice.repository.PageRepository;
+import com.example.restservice.repository.WordRepository;
+
 import org.jspecify.annotations.NullMarked;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -20,9 +22,11 @@ import java.util.List;
 public class PageService {
 
     private final PageRepository pageRepository;
+    private final WordRepository wordRepository;
 
-    public PageService(PageRepository pageRepository) {
+    public PageService(PageRepository pageRepository, WordRepository wordRepository) {
         this.pageRepository = pageRepository;
+        this.wordRepository = wordRepository;
     }
 
     @Transactional(readOnly = true)
@@ -45,10 +49,16 @@ public class PageService {
         Word last = page.getLastWord();
 
         Long firstNextId = (first != null && first.getNextWord() != null) ? first.getNextWord().getId() : null;
+        Long firstPreviousWordId = wordRepository.findByNextWord(first)
+                .map(Word::getId)
+                .orElse(null); // Returns null if this word is the head of the list
         Long lastNextId = (last != null && last.getNextWord() != null) ? last.getNextWord().getId() : null;
+        Long lastPreviousWordId = wordRepository.findByNextWord(last)
+                .map(Word::getId)
+                .orElse(null); // Returns null if this word is the head of the list
 
-        FlatLinkedWordDto firstWordDto = first != null ? new FlatLinkedWordDto(first.getId(), first.getContent(), firstNextId) : null;
-        FlatLinkedWordDto lastWordDto = last != null ? new FlatLinkedWordDto(last.getId(), last.getContent(), lastNextId) : null;
+        FlatLinkedWordDto firstWordDto = first != null ? new FlatLinkedWordDto(first.getId(), first.getContent(), firstNextId, firstPreviousWordId) : null;
+        FlatLinkedWordDto lastWordDto = last != null ? new FlatLinkedWordDto(last.getId(), last.getContent(), lastNextId, lastPreviousWordId) : null;
 
         return new PageResponseDto(page.getId(), firstWordDto, lastWordDto);
     }
@@ -92,7 +102,11 @@ public class PageService {
 
         // 3. Map lastEntity directly to a flat DTO representation
         Long nextId = (lastEntity.getNextWord() != null) ? lastEntity.getNextWord().getId() : null;
-        FlatLinkedWordDto flatLastWord = new FlatLinkedWordDto(lastEntity.getId(), lastEntity.getContent(), nextId);
+        // Look up previous ID efficiently using the repository query
+        Long previousWordId = wordRepository.findByNextWord(currentEntity)
+                .map(Word::getId)
+                .orElse(null); // Returns null if this word is the head of the list
+        FlatLinkedWordDto flatLastWord = new FlatLinkedWordDto(lastEntity.getId(), lastEntity.getContent(), nextId, previousWordId);
 
         return new BoundedPageResponse(page.getId(), headDto, flatLastWord);
     }
