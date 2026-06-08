@@ -1,72 +1,55 @@
 package com.example.restservice.controller;
 
+import com.example.restservice.dto.FlatLinkedWordDto;
 import com.example.restservice.model.Word;
-import com.example.restservice.repository.WordRepository;
+import com.example.restservice.service.WordService;
 import org.jspecify.annotations.NullMarked;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
 @RestController
-// Spring Boot 4 natively supports the 'version' property for clean routing
 @RequestMapping(value = "/api/words")
-@NullMarked // Spring Boot 4 standard for compile-time null safety
+@NullMarked
 public class WordController {
 
-    private final WordRepository wordRepository;
+    private final WordService wordService;
 
-    // Constructor injection is the recommended best practice
-    public WordController(WordRepository repo) {
-        this.wordRepository = repo;
+    public WordController(WordService wordService) {
+        this.wordService = wordService;
     }
 
-    // GET all words
     @GetMapping
-    public List<Word> getAllCourses() {
-        return wordRepository.findAll();
+    public List<Word> getAllWords() {
+        return wordService.getAllWords();
     }
 
-    // GET a single word by ID
+    @GetMapping("/flat/{id}")
+    public FlatLinkedWordDto getFlatWordById(@PathVariable Long id) {
+        return wordService.getFlatWordById(id);
+    }
+
     @GetMapping("/{id}")
     public Word getWordById(@PathVariable Long id) {
-        return wordRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found"));
+        return wordService.getWordById(id);
     }
 
-    // POST create a new word
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Word createCourse(@RequestBody Word word) {
-        return wordRepository.save(word);
+    public Word createWord(@RequestBody Word word) {
+        return wordService.createWord(word);
     }
 
-    // PUT update an existing word
     @PutMapping("/{id}")
-    public Word updateCourse(@PathVariable Long id, @RequestBody Word wordDetails) {
-        return wordRepository.findById(id)
-                .map(existingWord -> {
-                    existingWord.setContent(wordDetails.getContent());
-                    
-                    // CRITICAL: Map the nextWord relationship as well
-                    if (wordDetails.getNextWord() != null) {
-                        existingWord.setNextWord(wordDetails.getNextWord());
-                    }
-                    
-                    return wordRepository.save(existingWord);
-                })
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Word not found"));
+    public Word updateWord(@PathVariable Long id, @RequestBody Word wordDetails) {
+        return wordService.updateWord(id, wordDetails);
     }
 
-    // DELETE a word
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteCourse(@PathVariable Long id) {
-        if (!wordRepository.existsById(id)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Word not found");
-        }
-        wordRepository.deleteById(id);
+    public ResponseEntity<Void> deleteWord(@PathVariable Long id) {
+        wordService.deleteWord(id);
         return ResponseEntity.noContent().build();
     }
 }

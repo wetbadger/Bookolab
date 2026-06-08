@@ -14,12 +14,27 @@ public class Page {
     @OneToOne
     Word firstWord;
 
+    @OneToOne
+    Word lastWord;
+
+    public Long getId() {
+        return this.id;
+    }
+
     public Word getFirstWord() {
         return this.firstWord;
     }
 
     public void setFirstWord(Word word) {
         this.firstWord = word;
+    }
+
+    public Word getLastWord() {
+        return this.lastWord;
+    }
+
+    public void setLastWord(Word word) {
+        this.lastWord = word;
     }
 
 }

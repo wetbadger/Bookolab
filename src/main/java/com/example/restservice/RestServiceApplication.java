@@ -13,7 +13,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestClient;
 
 import com.example.restservice.model.Word;
+import com.example.restservice.model.Page;
 import com.example.restservice.repository.WordRepository;
+import com.example.restservice.repository.PageRepository;
 
 @SpringBootApplication
 public class RestServiceApplication implements CommandLineRunner {
@@ -22,6 +24,8 @@ public class RestServiceApplication implements CommandLineRunner {
 
     @Autowired
     private WordRepository wordRepository;
+    @Autowired
+    private PageRepository pageRepository;
 
     // 1. Define the missing bean so Spring can find it anywhere in your app
     @Bean
@@ -37,6 +41,7 @@ public class RestServiceApplication implements CommandLineRunner {
     public void run(String... args) throws Exception {
         // Querying the DB directly works fine at startup
         Optional<Word> firstWord = wordRepository.findById(10001L);
+        Optional<Page> pageOne = pageRepository.findById(1L);
         logger.info("Course 10001 -> {}", firstWord);
 
         // 2. Build the RestClient locally using the bean we defined above
@@ -54,38 +59,67 @@ public class RestServiceApplication implements CommandLineRunner {
         }
 
         try {
-            Word newWord = new Word("yeet");
-            firstWord.ifPresent(x -> x.setNextWord(newWord));
-            
-            // Capture the returned object from the server, which WILL have the generated ID
-            Word savedWord = restClient.post()
-                    .uri("/api/words")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(newWord)
-                    .retrieve()
-                    .body(Word.class); // <-- Expect a Word object back
+            Word previousWord = firstWord.orElseThrow(() -> new RuntimeException("Course 10001 not found"));
+            for (int i = 1; i <= 100; i++) {
+                Word newWord = new Word("yeet" + Integer.toString(i));
+                
+                // Capture the returned object from the server, which WILL have the generated ID
+                Word savedWord = restClient.post()
+                        .uri("/api/words")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body(newWord)
+                        .retrieve()
+                        .body(Word.class); // <-- Expect a Word object back
 
-            // Ensure the word exists, then pull it out of the Optional wrapper
-            Word wordToUpdate = firstWord.orElseThrow(() -> new RuntimeException("Course 10001 not found"));
+                logger.info(String.format("Setting %s next word to %s", previousWord.getContent(), savedWord.getContent()));
+                previousWord.setNextWord(savedWord);
+                
+                // Capture the Page object returned from the server
+                /*
+                Page pageOne = restClient.get()
+                        .uri("/api/pages/{id}", 1L) // Pass the ID as a path variable
+                        .accept(MediaType.APPLICATION_JSON) // Tell the server you expect JSON back
+                        .retrieve()
+                        .body(Page.class); // <-- Expect a Page object back
+                */
 
-            logger.info("HERE");
-            // This will now send the properly formed Word object JSON
-            Word savedFirstWord = restClient.put()
-                    .uri("/api/words/10001")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(wordToUpdate) // <-- Fixed: Passing the raw Word object
-                    .retrieve()
-                    .body(Word.class);
+                pageOne.ifPresent(x -> x.setLastWord(savedWord));
 
-            if (savedWord != null && savedWord.getId() != null) {
-                logger.info(savedWord.getId().toString());
-            } else {
-                logger.warn("Server saved the word but didn't return an ID.");
-            }
-            if (savedFirstWord != null && savedFirstWord.getId() != null) {
-                logger.info(savedFirstWord.getId().toString());
-            } else {
-                logger.warn("Server saved the word but didn't return an ID.");
+                // This will now send the properly formed Word object JSON
+                Word savedPreviousWord = restClient.put()
+                        .uri("/api/words/"+Long.toString(previousWord.getId()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body(previousWord) // <-- Fixed: Passing the raw Word object
+                        .retrieve()
+                        .body(Word.class);
+
+                // 1. Properly pull the Page object out of the Optional wrapper
+                Page pageToUpdate = pageOne.orElseThrow(() -> new RuntimeException("Page 1 not found"));
+
+                // 2. Pass the unwrapped 'pageToUpdate' object to the request body
+                Page updatedPage = restClient.put()
+                        .uri("/api/pages/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body(pageToUpdate) // <-- Fixed: Passing the unwrapped Page object
+                        .retrieve()
+                        .body(Page.class);
+
+                if (savedWord != null && savedWord.getId() != null) {
+                    logger.info(savedWord.getId().toString());
+                } else {
+                    logger.warn("Server saved the word but didn't return an ID.");
+                }
+                if (savedPreviousWord != null && savedPreviousWord.getId() != null) {
+                    logger.info(savedPreviousWord.getId().toString());
+                } else {
+                    logger.warn("Server saved the word but didn't return an ID.");
+                }
+                if (updatedPage != null && updatedPage.getId() != null) {
+                    logger.info(updatedPage.getId().toString());
+                } else {
+                    logger.warn("Server saved the page but didn't return an ID.");
+                }
+                previousWord = savedWord;
             }
         } catch (Exception e) {
             logger.error("Error during POST request: ", e);
@@ -104,7 +138,7 @@ public class RestServiceApplication implements CommandLineRunner {
 
         try {
             String response = restClient.get()
-                    .uri("/api/words/10001")
+                    .uri("/api/pages/1")
                     .retrieve()
                     .body(String.class);
 

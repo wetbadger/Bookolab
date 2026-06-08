@@ -21,8 +21,8 @@ public class Word {
 
     protected Word() {}
 
-    public Word(String name) {
-        this.content = name;
+    public Word(String content) {
+        this.content = content;
     }
 
     public String getContent() {

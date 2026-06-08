@@ -1,67 +1,57 @@
 package com.example.restservice.controller;
 
+import com.example.restservice.dto.BoundedPageResponse;
+import com.example.restservice.dto.PageResponseDto;
 import com.example.restservice.model.Page;
-import com.example.restservice.repository.PageRepository;
+import com.example.restservice.service.PageService;
 import org.jspecify.annotations.NullMarked;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
 @RestController
-// Spring Boot 4 natively supports the 'version' property for clean routing
 @RequestMapping(value = "/api/pages")
-@NullMarked // Spring Boot 4 standard for compile-time null safety
+@NullMarked
 public class PageController {
 
-    private final PageRepository pageRepository;
+    private final PageService pageService;
 
-    // Constructor injection is the recommended best practice
-    public PageController(PageRepository repo) {
-        this.pageRepository = repo;
+    // Constructor injection
+    public PageController(PageService pageService) {
+        this.pageService = pageService;
     }
 
-    // GET all pages
     @GetMapping
-    public List<Page> getAllCourses() {
-        return pageRepository.findAll();
+    public List<Page> getAllPages() {
+        return pageService.getAllPages();
     }
 
-    // GET a single page by ID
+    @GetMapping("/flat/{id}")
+    public PageResponseDto getFlatPage(@PathVariable Long id) {
+        return pageService.getFlatPage(id);
+    }
+
     @GetMapping("/{id}")
-    public Page getPageById(@PathVariable Long id) {
-        return pageRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found"));
+    public BoundedPageResponse getPage(@PathVariable Long id) {
+        return pageService.getBoundedPage(id);
     }
 
-    // POST create a new page
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public Page createPage(@RequestBody Page page) {
-        return pageRepository.save(page);
+        return pageService.createPage(page);
     }
 
-    // PUT update an existing page
     @PutMapping("/{id}")
     public Page updatePage(@PathVariable Long id, @RequestBody Page pageDetails) {
-        return pageRepository.findById(id)
-                .map(existingPage -> {
-                    existingPage.setFirstWord(pageDetails.getFirstWord());
-                    
-                    return pageRepository.save(existingPage);
-                })
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found"));
+        return pageService.updatePage(id, pageDetails);
     }
 
-    // DELETE a page
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteCourse(@PathVariable Long id) {
-        if (!pageRepository.existsById(id)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found");
-        }
-        pageRepository.deleteById(id);
+    public ResponseEntity<Void> deletePage(@PathVariable Long id) {
+        pageService.deletePage(id);
         return ResponseEntity.noContent().build();
     }
 }
