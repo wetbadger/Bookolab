@@ -56,7 +56,8 @@ public class PageService {
     /*
     The non-flat version of getPage will traverse the linked list until it reaches last word.
     This should only be called when initially loading the page for the user to limit server round-trips.
-    Updates to the page will continuously happen on the front end whenever a user inserts or appends a word.
+    Updates to the page will continuously happen on the front end whenever a user inserts or appends a word,
+    and in these situations we want to use getFlatWordById().
     */
     @Transactional(readOnly = true)
     public BoundedPageResponse getBoundedPage(Long id) {
