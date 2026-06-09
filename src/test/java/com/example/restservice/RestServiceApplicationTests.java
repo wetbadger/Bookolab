@@ -156,19 +156,33 @@ class RestServiceApplicationTests {
 		// 2. Act: Run the global truncate with a 6-character limit
 		pageService.globalTruncateAndRepaginate(6);
 
-		// 3. Assert: Verify re-pagination worked across the entire unified stream
+		// 3. Assert: Verify the exact page count and distribution across the database
 		List<Page> allPages = pageRepository.findAll();
+		assertEquals(6, allPages.size(), "The entire database should be sliced into exactly 6 pages");
 
-		// Let's count our expected pages based on character lengths:
-		// Page 1: "WordA" (?) + "WordC" (?) -> Depend on your setUp strings!
-		// Page 2: "One" (3) + "Two" (3) = 6 chars.
-		// Page 3: "Three" (5) = 5 chars.
-		// Page 4: "Four" (4) = 4 chars.
-		// Page 5: "Five" (4) = 4 chars.
+		// Assert Page 1: ["WordA" -> "WordA"] (5 chars)
+		Page pA = findPageStartingWith(allPages, wordA);
+		assertEquals(wordA.getId(), pA.getLastWord().getId());
 
-		// Verify that the chunk starting with "One" still behaves exactly as expected
+		// Assert Page 2: ["WordC" -> "WordC"] (5 chars)
+		Page pC = findPageStartingWith(allPages, wordC);
+		assertEquals(wordC.getId(), pC.getLastWord().getId());
+
+		// Assert Page 3: ["One" -> "Two"] (3 + 3 = 6 chars)
 		Page pOne = findPageStartingWith(allPages, w1);
 		assertEquals(w2.getId(), pOne.getLastWord().getId());
+
+		// Assert Page 4: ["Three" -> "Three"] (5 chars)
+		Page pThree = findPageStartingWith(allPages, w3);
+		assertEquals(w3.getId(), pThree.getLastWord().getId());
+
+		// Assert Page 5: ["Four" -> "Four"] (4 chars)
+		Page pFour = findPageStartingWith(allPages, w4);
+		assertEquals(w4.getId(), pFour.getLastWord().getId());
+
+		// Assert Page 6: ["Five" -> "Five"] (4 chars)
+		Page pFive = findPageStartingWith(allPages, w5);
+		assertEquals(w5.getId(), pFive.getLastWord().getId());
 	}
 
 	// Helper method to look up our newly mapped pages in the test assertion
