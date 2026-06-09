@@ -14,9 +14,9 @@
       @blur="cancelEditing"
     />
 
-    <button 
-      v-else 
-      type="button" 
+    <button
+      v-else
+      type="button"
       class="plus-btn"
       :class="{ 'is-loading': isSubmitting }"
       :disabled="isSubmitting"
@@ -68,7 +68,7 @@ const cancelEditing = () => {
 // Handle submitting to the backend
 const submitWord = async () => {
   const trimmedWord = newWord.value.trim();
-  
+
   // Don't submit empty spaces
   if (!trimmedWord) {
     cancelEditing();
@@ -81,7 +81,6 @@ const submitWord = async () => {
     const currentPageId = Number(route.params.id); // gets the page id
 
     // We send the text content and the linked parent node ID (or null if it's the first word)
-    console.log(props.previous);
     await pageStore.addWord(trimmedWord, currentPageId, props.previous);
 
     // Clear and reset on success
