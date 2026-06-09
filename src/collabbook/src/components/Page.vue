@@ -14,7 +14,7 @@
 
   <div v-else class="sentence-container">
     <span v-if="isEditMode" class="plus-sign">
-      <Plus />
+      <Plus :previous="pageStore.previousPageLastWordId" />
     </span>
     
     <template v-for="word in displayedWords" :key="word.id">

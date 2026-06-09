@@ -5,6 +5,7 @@ import axios from 'axios';
 export const usePageStore = defineStore('pageStore', {
   state: () => ({
     records: [],
+    previousPageLastWordId: null,
     loading: false,
     uploading: false,
     error: null // Track the error message
@@ -16,6 +17,18 @@ export const usePageStore = defineStore('pageStore', {
       try {
         const response = await axios.get(`https://automatic-goggles-qp6qq677xjwf995r-8080.app.github.dev/api/pages/${id}`);
         this.records = response.data;
+        
+        const pageNumber = Number(id);
+        if (pageNumber > 1) {
+          try {
+            const prevPageResponse = await axios.get(`https://automatic-goggles-qp6qq677xjwf995r-8080.app.github.dev/api/pages/${pageNumber - 1}`);
+            // Extract the last word's ID from the preceding page if it exists
+            this.previousPageLastWordId = prevPageResponse.data?.lastWord?.id || null;
+          } catch (peekError) {
+            console.warn("Could not fetch the preceding page's boundary word:", peekError);
+            this.previousPageLastWordId = null; 
+          }
+        }
       } catch (err) {
         // Capture the error message from the database or API failure
         this.error = err;
