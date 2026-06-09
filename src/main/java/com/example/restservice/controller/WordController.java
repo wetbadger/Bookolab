@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@CrossOrigin(origins = "https://automatic-goggles-qp6qq677xjwf995r-5173.app.github.dev", allowCredentials = "true")
+@CrossOrigin(origins = "${app.cors.allowed-origin}", allowCredentials = "true")
 @RequestMapping(value = "/api/words")
 @NullMarked
 public class WordController {

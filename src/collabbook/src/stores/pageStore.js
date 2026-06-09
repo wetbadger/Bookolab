@@ -1,6 +1,8 @@
 // src/stores/pageStore.js
 import { defineStore } from 'pinia';
 import axios from 'axios';
+// Access the environment variable
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 export const usePageStore = defineStore('pageStore', {
   state: () => ({
@@ -15,18 +17,18 @@ export const usePageStore = defineStore('pageStore', {
       this.loading = true;
       this.error = null; // Reset error on new attempt
       try {
-        const response = await axios.get(`https://automatic-goggles-qp6qq677xjwf995r-8080.app.github.dev/api/pages/${id}`);
+        const response = await axios.get(`${API_BASE_URL}/pages/${id}`);
         this.records = response.data;
-        
+
         const pageNumber = Number(id);
         if (pageNumber > 1) {
           try {
-            const prevPageResponse = await axios.get(`https://automatic-goggles-qp6qq677xjwf995r-8080.app.github.dev/api/pages/${pageNumber - 1}`);
+            const prevPageResponse = await axios.get(`${API_BASE_URL}/pages/${pageNumber - 1}`);
             // Extract the last word's ID from the preceding page if it exists
             this.previousPageLastWordId = prevPageResponse.data?.lastWord?.id || null;
           } catch (peekError) {
             console.warn("Could not fetch the preceding page's boundary word:", peekError);
-            this.previousPageLastWordId = null; 
+            this.previousPageLastWordId = null;
           }
         }
       } catch (err) {
@@ -43,7 +45,7 @@ export const usePageStore = defineStore('pageStore', {
 
       // 1. Only include what matches the Java @RequestBody Word object
       const requestBody = {
-        content: content 
+        content: content
       };
 
       // 2. Build out the query parameter config block for Axios
@@ -57,8 +59,8 @@ export const usePageStore = defineStore('pageStore', {
       try {
         // Pass the URL, the body data, and then the configuration object
         await axios.post(
-          "https://automatic-goggles-qp6qq677xjwf995r-8080.app.github.dev/api/words", 
-          requestBody, 
+          `${API_BASE_URL}/words`,
+          requestBody,
           config
         );
       } catch (err) {

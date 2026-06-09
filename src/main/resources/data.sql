@@ -34,6 +34,7 @@ COMMIT;
 BEGIN TRANSACTION;
 
 INSERT INTO word (id, content) VALUES (20001, 'jumps');
+UPDATE word SET next_word_id = 20001 WHERE id = 10004;
 INSERT INTO page (id, first_word_id, last_word_id) VALUES (2, 20001, 20001);
 
 COMMIT;
@@ -67,6 +68,7 @@ COMMIT;
 BEGIN TRANSACTION;
 
 INSERT INTO word (id, content) VALUES (30001, 'dog.');
+UPDATE word SET next_word_id = 30001 WHERE id = 20004;
 INSERT INTO page (id, first_word_id, last_word_id) VALUES (3, 30001, 30001);
 
 COMMIT;
