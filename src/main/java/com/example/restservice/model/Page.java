@@ -1,9 +1,6 @@
 package com.example.restservice.model;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.Id;
-import jakarta.persistence.OneToOne;
+import jakarta.persistence.*;
 
 @Entity
 public class Page {
@@ -12,9 +9,11 @@ public class Page {
     private Long id;
 
     @OneToOne
+    @JoinColumn(name = "first_word_id", unique = true)
     Word firstWord;
 
     @OneToOne
+    @JoinColumn(name = "last_word_id", unique = true)
     Word lastWord;
 
     public Long getId() {
@@ -36,5 +35,4 @@ public class Page {
     public void setLastWord(Word word) {
         this.lastWord = word;
     }
-
 }

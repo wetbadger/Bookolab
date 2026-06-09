@@ -2,7 +2,9 @@ package com.example.restservice.service;
 
 import com.example.restservice.dto.FlatLinkedWordDto;
 import com.example.restservice.model.Word;
+import com.example.restservice.repository.PageRepository;
 import com.example.restservice.repository.WordRepository;
+import jakarta.annotation.Nullable;
 import org.jspecify.annotations.NullMarked;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -16,9 +18,12 @@ import java.util.List;
 public class WordService {
 
     private final WordRepository wordRepository;
+    private final PageRepository pageRepository; // Only used for deletion edge case
 
-    public WordService(WordRepository wordRepository) {
+    // Update constructor injection
+    public WordService(WordRepository wordRepository, PageRepository pageRepository) {
         this.wordRepository = wordRepository;
+        this.pageRepository = pageRepository;
     }
 
     @Transactional(readOnly = true)
@@ -56,8 +61,32 @@ public class WordService {
     }
 
     @Transactional
-    public Word createWord(Word word) {
-        return wordRepository.save(word);
+    public Word createWord(Word newWord, @Nullable Long previousWordId) {
+        if (previousWordId != null) {
+            // 1. Find the word we are attaching to
+            Word previousWord = wordRepository.findById(previousWordId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Previous word not found"));
+
+            // 2. Cache the next word link so we don't lose it
+            Word nextWordAnchor = previousWord.getNextWord();
+
+            // 3. SEVER the link on the previous word immediately to free up the unique constraint
+            previousWord.setNextWord(null);
+            wordRepository.saveAndFlush(previousWord); // Force the DB to see next_word_id is now NULL
+
+            // 4. Give the cached link to the new word
+            newWord.setNextWord(nextWordAnchor);
+            Word savedWord = wordRepository.saveAndFlush(newWord); // Save newWord safely
+
+            // 5. Point the previous word to the newly saved word
+            previousWord.setNextWord(savedWord);
+            wordRepository.save(previousWord);
+
+            return savedWord;
+        }
+
+        // If no previousWordId, it's a new head or a standalone word
+        return wordRepository.save(newWord);
     }
 
     @Transactional
@@ -78,9 +107,40 @@ public class WordService {
 
     @Transactional
     public void deleteWord(Long id) {
-        if (!wordRepository.existsById(id)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Word not found");
+        Word wordToDelete = wordRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Word not found"));
+
+        Word nextWord = wordToDelete.getNextWord();
+        Word previousWord = wordRepository.findByNextWord(wordToDelete).orElse(null);
+
+        patchPageBoundaries(wordToDelete, previousWord, nextWord);
+
+        if (previousWord != null) {
+            previousWord.setNextWord(nextWord);
+            wordRepository.save(previousWord);
         }
-        wordRepository.deleteById(id);
+
+        wordToDelete.setNextWord(null);
+        wordRepository.saveAndFlush(wordToDelete);
+        wordRepository.delete(wordToDelete);
+    }
+
+    private void patchPageBoundaries(Word wordToDelete, @Nullable Word previousWord, @Nullable Word nextWord) {
+        // Fix page where this was the first word
+        pageRepository.findByFirstWord(wordToDelete).ifPresent(page -> {
+            if (wordToDelete.equals(page.getLastWord())) {
+                page.setFirstWord(null);
+                page.setLastWord(null);
+            } else {
+                page.setFirstWord(nextWord);
+            }
+            pageRepository.save(page);
+        });
+
+        // Fix page where this was the last word
+        pageRepository.findByLastWord(wordToDelete).ifPresent(page -> {
+            page.setLastWord(previousWord);
+            pageRepository.save(page);
+        });
     }
 }

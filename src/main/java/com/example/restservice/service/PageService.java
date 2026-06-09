@@ -135,4 +135,56 @@ public class PageService {
         }
         pageRepository.deleteById(id);
     }
+
+    @Transactional
+    public void globalTruncateAndRepaginate(int maxCharacters) {
+        // 1. Find the absolute head of the entire database text chain FIRST
+        Word currentWord = wordRepository.findAll().stream()
+                .filter(w -> wordRepository.findByNextWord(w).isEmpty())
+                .findFirst()
+                .orElse(null);
+
+        if (currentWord == null) return; // DB is completely empty
+
+        // 2. Wipe old pages and FORCE a flush to free up the unique database constraints immediately
+        pageRepository.deleteAll();
+        pageRepository.flush();
+
+        // 3. Setup traversal and page tracking variables
+        Page currentPage = new Page();
+        currentPage.setFirstWord(currentWord);
+        int rollingCharacterCount = 0;
+        Word previousWord = null;
+
+        // 4. Step through every single character in the linked list
+        while (currentWord != null) {
+            int wordLength = currentWord.getContent().length();
+
+            // Check if adding this word violates the maximum capacity of the current page
+            if (rollingCharacterCount + wordLength > maxCharacters) {
+                // Close out the filled page at the previous word anchor
+                currentPage.setLastWord(previousWord != null ? previousWord : currentPage.getFirstWord());
+                pageRepository.save(currentPage);
+
+                // Spawn the next clean page block
+                currentPage = new Page();
+                currentPage.setFirstWord(currentWord);
+
+                // RESET counter back to 0 because this is a brand new page
+                rollingCharacterCount = 0;
+            }
+
+            // CRITICAL FIX: Ensure the current word's length is tracked,
+            // whether it stayed on the old page or kicked off the new page.
+            rollingCharacterCount += wordLength;
+            previousWord = currentWord;
+            currentWord = currentWord.getNextWord();
+        }
+
+        // 5. Catch and save the final trailing page after exiting the loop
+        if (currentPage.getFirstWord() != null) {
+            currentPage.setLastWord(previousWord);
+            pageRepository.save(currentPage);
+        }
+    }
 }

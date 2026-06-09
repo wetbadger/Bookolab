@@ -1,6 +1,8 @@
 package com.example.restservice;
 
 import java.util.Optional;
+
+import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -9,7 +11,6 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestClient;
 
 import com.example.restservice.model.Word;
@@ -38,7 +39,8 @@ public class RestServiceApplication implements CommandLineRunner {
     }
 
     @Override
-    public void run(String... args) throws Exception {
+    public void run(String @NonNull ... args) throws Exception {
+        /*
         // Querying the DB directly works fine at startup
         Optional<Word> firstWord = wordRepository.findById(10001L);
         Optional<Page> pageOne = pageRepository.findById(1L);
@@ -60,32 +62,29 @@ public class RestServiceApplication implements CommandLineRunner {
 
         try {
             Word previousWord = firstWord.orElseThrow(() -> new RuntimeException("Course 10001 not found"));
-            for (int i = 1; i <= 100; i++) {
+            for (int i = 1; i <= 10; i++) {
                 Word newWord = new Word("yeet" + Integer.toString(i));
                 
                 // Capture the returned object from the server, which WILL have the generated ID
+                Word finalPreviousWord = previousWord;
                 Word savedWord = restClient.post()
-                        .uri("/api/words")
+                        .uri(uriBuilder -> {
+                            uriBuilder.path("/api/words");
+                            // Only add the parameter if we actually have a previous word
+                            if (finalPreviousWord != null && finalPreviousWord.getId() != null) {
+                                uriBuilder.queryParam("previousWordId", finalPreviousWord.getId());
+                            }
+                            return uriBuilder.build();
+                        })
                         .contentType(MediaType.APPLICATION_JSON)
                         .body(newWord)
                         .retrieve()
-                        .body(Word.class); // <-- Expect a Word object back
-
-                logger.info(String.format("Setting %s next word to %s", previousWord.getContent(), savedWord.getContent()));
-                previousWord.setNextWord(savedWord);
-                
-                // Capture the Page object returned from the server
-                /*
-                Page pageOne = restClient.get()
-                        .uri("/api/pages/{id}", 1L) // Pass the ID as a path variable
-                        .accept(MediaType.APPLICATION_JSON) // Tell the server you expect JSON back
-                        .retrieve()
-                        .body(Page.class); // <-- Expect a Page object back
-                */
+                        .body(Word.class);
 
                 pageOne.ifPresent(x -> x.setLastWord(savedWord));
 
                 // This will now send the properly formed Word object JSON
+                assert previousWord != null;
                 Word savedPreviousWord = restClient.put()
                         .uri("/api/words/"+Long.toString(previousWord.getId()))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -112,7 +111,7 @@ public class RestServiceApplication implements CommandLineRunner {
                 if (savedPreviousWord != null && savedPreviousWord.getId() != null) {
                     logger.info(savedPreviousWord.getId().toString());
                 } else {
-                    logger.warn("Server saved the word but didn't return an ID.");
+                    logger.warn("Server saved the previous word but didn't return an ID.");
                 }
                 if (updatedPage != null && updatedPage.getId() != null) {
                     logger.info(updatedPage.getId().toString());
@@ -131,7 +130,7 @@ public class RestServiceApplication implements CommandLineRunner {
                     .retrieve()
                     .body(String.class);
 
-            logger.info("API Response: " + response);
+            logger.info("API response for word 1: " + response);
         } catch (Exception e) {
             logger.error(e.getMessage());
         }
@@ -142,9 +141,21 @@ public class RestServiceApplication implements CommandLineRunner {
                     .retrieve()
                     .body(String.class);
 
-            logger.info("API Response: " + response);
+            logger.info("API response for page 1: " + response);
         } catch (Exception e) {
             logger.error(e.getMessage());
         }
+
+        try {
+            String response = restClient.get()
+                    .uri("/api/pages/flat/1")
+                    .retrieve()
+                    .body(String.class);
+
+            logger.info("API response for flat page 1: " + response);
+        } catch (Exception e) {
+            logger.error(e.getMessage());
+        }
+        */
     }
 }

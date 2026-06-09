@@ -38,8 +38,11 @@ public class WordController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Word createWord(@RequestBody Word word) {
-        return wordService.createWord(word);
+    public Word createWord(
+            @RequestBody Word word,
+            @RequestParam(required = false) Long previousWordId
+    ) {
+        return wordService.createWord(word, previousWordId);
     }
 
     @PutMapping("/{id}")
