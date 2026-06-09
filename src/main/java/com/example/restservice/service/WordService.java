@@ -2,6 +2,7 @@ package com.example.restservice.service;
 
 import com.example.restservice.dto.FlatLinkedWordDto;
 import com.example.restservice.model.Word;
+import com.example.restservice.model.Page;
 import com.example.restservice.repository.PageRepository;
 import com.example.restservice.repository.WordRepository;
 import jakarta.annotation.Nullable;
@@ -12,13 +13,14 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @NullMarked
 public class WordService {
 
     private final WordRepository wordRepository;
-    private final PageRepository pageRepository; // Only used for deletion edge case
+    private final PageRepository pageRepository;
 
     // Update constructor injection
     public WordService(WordRepository wordRepository, PageRepository pageRepository) {
@@ -60,8 +62,20 @@ public class WordService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Word not found"));
     }
 
+    /**
+     * Create a word.
+     *
+     * Inserts a word after the previous word.
+     * If there is no previous word, assume we are at the beginning and change the first
+     * page's first word to the word we are creating.
+     *
+     * @param newWord Description of the input parameter.
+     * @param currentPage Used to decide if we should change the firtsWord or lastWord of the current page.
+     * @param previousWordId Description of the input parameter.
+     * @return the created word.
+     */
     @Transactional
-    public Word createWord(Word newWord, @Nullable Long previousWordId) {
+    public Word createWord(Word newWord, Long currentPageId, @Nullable Long previousWordId) {
         if (previousWordId != null) {
             // 1. Find the word we are attaching to
             Word previousWord = wordRepository.findById(previousWordId)
@@ -82,10 +96,36 @@ public class WordService {
             previousWord.setNextWord(savedWord);
             wordRepository.save(previousWord);
 
+            // Update firstWord or lastWord of current page
+            // 1. Fetch the current page (this one should probably still throw if missing, assuming it's mandatory)
+            Page currentPage = pageRepository.findById(currentPageId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Current page not found"));
+
+            // 2. Use .orElse(null) so execution doesn't halt if these pages don't exist
+            Page pageWithLastWord = pageRepository.findByLastWord(previousWord).orElse(null);
+            Page pageWithFirstWord = pageRepository.findByFirstWord(savedWord.getNextWord()).orElse(null);
+
+            // 3. Perform null-safe ID comparisons using Objects.equals()
+            if (pageWithLastWord != null && Objects.equals(pageWithLastWord.getId(), currentPageId)) {
+                currentPage.setLastWord(savedWord);
+            }
+
+            if (pageWithFirstWord != null && Objects.equals(pageWithFirstWord.getId(), currentPageId)) {
+                currentPage.setFirstWord(savedWord);
+            }
+
+            // 4. Save your currentPage changes if necessary
+            pageRepository.save(currentPage);
+
             return savedWord;
         }
 
         // If no previousWordId, it's a new head or a standalone word
+        Page pageOne = pageRepository.findById(1L)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Word not found"));
+        newWord.setNextWord(pageOne.getFirstWord());
+        pageOne.setFirstWord(newWord);
+        pageRepository.save(pageOne);
         return wordRepository.save(newWord);
     }
 

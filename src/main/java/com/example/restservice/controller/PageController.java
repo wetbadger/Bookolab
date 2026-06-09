@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
+@CrossOrigin(origins = "https://automatic-goggles-qp6qq677xjwf995r-5173.app.github.dev", allowCredentials = "true")
 @RequestMapping(value = "/api/pages")
 @NullMarked
 public class PageController {

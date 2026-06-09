@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
+@CrossOrigin(origins = "https://automatic-goggles-qp6qq677xjwf995r-5173.app.github.dev", allowCredentials = "true")
 @RequestMapping(value = "/api/words")
 @NullMarked
 public class WordController {
@@ -40,9 +41,12 @@ public class WordController {
     @ResponseStatus(HttpStatus.CREATED)
     public Word createWord(
             @RequestBody Word word,
+            @RequestParam(required = true) Long currentPageId,
             @RequestParam(required = false) Long previousWordId
+            
     ) {
-        return wordService.createWord(word, previousWordId);
+        System.out.println(String.format("Word being created... %s %d", word, previousWordId));
+        return wordService.createWord(word, currentPageId, previousWordId);
     }
 
     @PutMapping("/{id}")

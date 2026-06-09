@@ -68,6 +68,10 @@ public class PageService {
     This should only be called when initially loading the page for the user to limit server round-trips.
     Updates to the page will continuously happen on the front end whenever a user inserts or appends a word,
     and in these situations we want to use getFlatWordById().
+
+    The user should be limited in their number of refreshes because the site could be DDOS'd by calling this
+    function too many times. Or maybe the page should just be cached, so that refreshes don't call this
+    function but goes to the cache instead. If the page has no changes, we simply return the cached version.
     */
     @Transactional(readOnly = true)
     public BoundedPageResponse getBoundedPage(Long id) {
@@ -128,6 +132,10 @@ public class PageService {
                 // Note: Fixed an error in your original code where update/delete said "Course not found"
     }
 
+    /*
+    Since pages are only added by the globalTruncateAndRepaginate function, there is
+    no need to ever use this function. All pages are deleted at once and the word-list is repaginated.
+    */
     @Transactional
     public void deletePage(Long id) {
         if (!pageRepository.existsById(id)) {
@@ -136,6 +144,12 @@ public class PageService {
         pageRepository.deleteById(id);
     }
 
+    /*
+    A cron task will run this function every 15 minutes. This will limit all pages to 1000 characters,
+    either removing or adding pages to accomodate the added or deleted words.
+
+    On the front end, users who are editing a word should be redirected to the page where their previous word is moved to.
+    */
     @Transactional
     public void globalTruncateAndRepaginate(int maxCharacters) {
         // 1. Find the absolute head of the entire database text chain FIRST
@@ -174,9 +188,9 @@ public class PageService {
                 rollingCharacterCount = 0;
             }
 
-            // CRITICAL FIX: Ensure the current word's length is tracked,
+            // Ensure the current word's length is tracked,
             // whether it stayed on the old page or kicked off the new page.
-            rollingCharacterCount += wordLength;
+            rollingCharacterCount += wordLength + 1; // Count space as a character.
             previousWord = currentWord;
             currentWord = currentWord.getNextWord();
         }

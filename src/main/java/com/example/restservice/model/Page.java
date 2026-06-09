@@ -20,6 +20,10 @@ public class Page {
         return this.id;
     }
 
+    public void setId(Long id) {
+        this.id = id;
+    }
+
     public Word getFirstWord() {
         return this.firstWord;
     }
