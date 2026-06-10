@@ -8,10 +8,6 @@
     {{ pageStore.records }}
   </div>
 
-  <div>
-    {{ firstWord }}
-  </div>
-
   <div v-if="dbError" class="error-alert">
     ⚠️ Error: {{ dbError }}
   </div>
@@ -24,7 +20,7 @@
     <span v-if="isEditMode" class="plus-sign">
       <Plus
         :previous="pageStore.previousPageLastWordId"
-        :next="firstWord?.nextWord?.id"
+        :next="firstWord?.id"
         @submit="handleWordSubmit"
       />
     </span>
@@ -98,11 +94,8 @@ const loadWordsInstantly = async () => {
 };
 
 const handleWordSubmit = (data) => {
-  // 1. Destructure the custom payload emitted from the Plus child component
-  // Plus.vue sends: { id, content, previous, next }
   const { id, content, previous, next } = data;
 
-  // 2. Create the flat object for your displayedWords array
   const newWordObj = {
     id: id,
     content: content,
@@ -110,13 +103,19 @@ const handleWordSubmit = (data) => {
     showPlus: true
   };
 
-  // 3. Evaluate 'previous' from the event payload, NOT from the parent props
-  if (!previous) {
-    // Insert at the absolute front of the page
+  // Grab the ID of the current first word displayed on the screen
+  const currentFirstWordId = displayedWords.value[0]?.id;
+
+  // CRITICAL FIX: It belongs at the front if there's no previous ID,
+  // OR if the 'next' ID matches the current first word on the screen.
+  const isInsertingAtFront = !previous || (next && Number(next) === Number(currentFirstWordId));
+
+  if (isInsertingAtFront) {
+    // Insert at the absolute front of the displayed list
     displayedWords.value.unshift(newWordObj);
   } else {
-    // Find the word we are inserting AFTER using the emitted previous ID
-    const previousIndex = displayedWords.value.findIndex(word => word.id === previous);
+    // Find the word we are inserting AFTER in the middle or end
+    const previousIndex = displayedWords.value.findIndex(word => Number(word.id) === Number(previous));
 
     if (previousIndex !== -1) {
       // Update the pointer of the word preceding our new word

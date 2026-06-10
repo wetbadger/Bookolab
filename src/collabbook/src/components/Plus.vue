@@ -73,29 +73,27 @@ const cancelEditing = () => {
 // Handle submitting to the backend
 const submitWord = async () => {
   const trimmedWord = newWord.value.trim();
-
-  // Don't submit empty spaces
-  if (!trimmedWord) {
-    cancelEditing();
-    return;
-  }
+  if (!trimmedWord) { cancelEditing(); return; }
 
   try {
     isSubmitting.value = true;
+    const currentPageId = Number(route.params.id);
 
-    const currentPageId = Number(route.params.id); // gets the page id
+    // 1. Await the server's database response
+    const savedWord = await pageStore.addWord(trimmedWord, currentPageId, props.previous, props.next);
 
-    // We send the text content and the linked parent node ID (or null if it's the first word)
-    await pageStore.addWord(trimmedWord, currentPageId, props.previous);
+    // 2. NOW emit the real, database-allocated ID to the parent
+    emit('submit', {
+      id: savedWord.id, // 100% valid database ID
+      content: trimmedWord,
+      previous: props.previous,
+      next: props.next
+    });
 
-    emit('submit', {content: trimmedWord, previous: props.previous, next: props.next });
-
-    // Clear and reset on success
     newWord.value = '';
     isEditing.value = false;
   } catch (error) {
     console.error("Failed to add word:", error);
-    // Keep the input open so they don't lose their typed word if it fails
     inputRef.value?.focus();
   } finally {
     isSubmitting.value = false;

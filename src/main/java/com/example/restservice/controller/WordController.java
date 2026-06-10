@@ -44,8 +44,9 @@ public class WordController {
             @RequestParam(required = true) Long currentPageId,
             @RequestParam(required = false) Long previousWordId
             
-    ) {
+    ) throws InterruptedException {
         System.out.println(String.format("Word being created... %s %d", word, previousWordId));
+        Thread.sleep(2500);
         return wordService.createWord(word, currentPageId, previousWordId);
     }
 
