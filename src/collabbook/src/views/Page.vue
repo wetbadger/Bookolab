@@ -4,7 +4,7 @@
     <router-link v-else :to="`/pages/${id}`" class="btn">👁️ View Page</router-link>
   </div>
 
-  <div>
+  <div v-show="isDebugMode">
     {{ pageStore.records }}
   </div>
 
@@ -50,7 +50,8 @@ import Plus from '@/components/Plus.vue';
 // Define the incoming props from Vue Router
 const props = defineProps({
   id: { type: String, required: true },
-  isEditMode: { type: Boolean, default: false }
+  isEditMode: { type: Boolean, default: false },
+  isDebugMode: { type: Boolean, default: false }
 });
 
 const pageStore = usePageStore();
@@ -109,25 +110,19 @@ const handleWordSubmit = (data) => {
     showPlus: true
   };
 
-  // Grab the ID of the current first word displayed on the screen
   const currentFirstWordId = displayedWords.value[0]?.id;
 
-  // CRITICAL FIX: It belongs at the front if there's no previous ID,
+  // It belongs at the front if there's no previous ID,
   // OR if the 'next' ID matches the current first word on the screen.
   const isInsertingAtFront = !previous || (next && Number(next) === Number(currentFirstWordId));
 
   if (isInsertingAtFront) {
-    // Insert at the absolute front of the displayed list
     displayedWords.value.unshift(newWordObj);
   } else {
-    // Find the word we are inserting AFTER in the middle or end
     const previousIndex = displayedWords.value.findIndex(word => Number(word.id) === Number(previous));
 
     if (previousIndex !== -1) {
-      // Update the pointer of the word preceding our new word
       displayedWords.value[previousIndex].nextWordId = newWordObj.id;
-
-      // Splice the new word into the flat array layout exactly where it belongs
       displayedWords.value.splice(previousIndex + 1, 0, newWordObj);
     }
   }

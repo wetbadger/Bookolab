@@ -1,5 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
-import Page from '@/components/Page.vue';
+import Page from '@/views/Page.vue';
+
+const isDebugMode = true;
 
 const routes = [
   {
@@ -11,14 +13,14 @@ const routes = [
     name: 'page-view',
     component: Page,
     // Passes the URL id as a prop, and sets edit mode to false
-    props: route => ({ id: route.params.id, isEditMode: false })
+    props: route => ({ id: route.params.id, isEditMode: false, isDebugMode: isDebugMode })
   },
   {
     path: '/pages/:id/edit',
     name: 'page-edit',
     component: Page,
     // Passes the URL id as a prop, and sets edit mode to true
-    props: route => ({ id: route.params.id, isEditMode: true })
+    props: route => ({ id: route.params.id, isEditMode: true, isDebugMode: isDebugMode })
   }
 ];
 

@@ -1,6 +1,6 @@
 /*
 BUGS:
- */
+*/
 
 // src/stores/pageStore.js
 import { defineStore } from 'pinia';

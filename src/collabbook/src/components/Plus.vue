@@ -18,12 +18,9 @@
       v-else
       type="button"
       class="plus-btn"
-      :class="{ 'is-loading': isSubmitting }"
-      :disabled="isSubmitting"
       @click="startEditing"
     >
-      <span v-if="isSubmitting" class="spinner">⏳</span>
-      <span v-else>+</span>
+      <span>+</span>
     </button>
   </div>
 </template>
@@ -129,11 +126,6 @@ const submitWord = async () => {
   background-color: #007bff;
   color: white;
   transform: scale(1.1);
-}
-
-.plus-btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
 }
 
 .word-input {

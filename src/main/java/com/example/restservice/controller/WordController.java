@@ -46,7 +46,7 @@ public class WordController {
             
     ) throws InterruptedException {
         System.out.println(String.format("Word being created... %s %d", word, previousWordId));
-        Thread.sleep(2500);
+        Thread.sleep(2000);
         return wordService.createWord(word, currentPageId, previousWordId);
     }
 
