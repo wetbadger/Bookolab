@@ -33,11 +33,16 @@ import { ref, nextTick } from 'vue';
 import { useRoute } from 'vue-router';
 import { usePageStore } from '@/stores/pageStore';
 
+const emit = defineEmits(['submit']);
 // Grab the 'previous' word prop passed down from the parent template
 const props = defineProps({
   previous: {
     type: Number,
     default: null // Will be null for the very first plus sign on the page
+  },
+  next: {
+    type: Number,
+    default: null
   }
 });
 
@@ -82,6 +87,8 @@ const submitWord = async () => {
 
     // We send the text content and the linked parent node ID (or null if it's the first word)
     await pageStore.addWord(trimmedWord, currentPageId, props.previous);
+
+    emit('submit', {content: trimmedWord, previous: props.previous, next: props.next });
 
     // Clear and reset on success
     newWord.value = '';

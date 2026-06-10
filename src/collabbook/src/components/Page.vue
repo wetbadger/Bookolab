@@ -4,6 +4,14 @@
     <router-link v-else :to="`/pages/${id}`" class="btn">👁️ View Page</router-link>
   </div>
 
+  <div>
+    {{ pageStore.records }}
+  </div>
+
+  <div>
+    {{ firstWord }}
+  </div>
+
   <div v-if="dbError" class="error-alert">
     ⚠️ Error: {{ dbError }}
   </div>
@@ -14,16 +22,24 @@
 
   <div v-else class="sentence-container">
     <span v-if="isEditMode" class="plus-sign">
-      <Plus :previous="pageStore.previousPageLastWordId" />
+      <Plus
+        :previous="pageStore.previousPageLastWordId"
+        :next="firstWord?.nextWord?.id"
+        @submit="handleWordSubmit"
+      />
     </span>
-    
+
     <template v-for="word in displayedWords" :key="word.id">
-      <span>
+      <span :id="word.id">
         <Word :data="word" />
       </span>
-      
+
       <span v-if="isEditMode && word.showPlus" class="plus-sign">
-        <Plus :previous="word.id"/>
+        <Plus
+          :previous="word.id"
+          :next="word.nextWordId"
+          @submit="handleWordSubmit"
+        />
       </span>
     </template>
   </div>
@@ -41,19 +57,22 @@ const props = defineProps({
   isEditMode: { type: Boolean, default: false }
 });
 
+const messageFromChild = ref('')
+
 const pageStore = usePageStore();
 const dbError = computed(() => pageStore.error);
 const displayedWords = ref([]);
+const firstWord = ref([]);
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Stream words one-by-one for standard viewing
 const streamWordsRealTime = async () => {
   displayedWords.value = [];
-  let currentWord = pageStore.records?.firstWord;
-  
+  firstWord.value = pageStore.records?.firstWord;
+  let currentWord = firstWord.value;
   while (currentWord) {
-    displayedWords.value.push({ id: currentWord.id, content: currentWord.content });
+    displayedWords.value.push({ id: currentWord.id, content: currentWord.content, nextWordId: currentWord?.nextWord?.id });
     await delay(30); // Fast stream speed
     currentWord = currentWord.nextWord;
   }
@@ -62,13 +81,14 @@ const streamWordsRealTime = async () => {
 // Instantly load all words into the array for immediate editing
 const loadWordsInstantly = async () => {
   const result = [];
-  let currentWord = pageStore.records?.firstWord;
+  firstWord.value = pageStore.records?.firstWord;
+  let currentWord = firstWord.value;
   while (currentWord) {
-    result.push({ id: currentWord.id, content: currentWord.content, showPlus: false });
+    result.push({ id: currentWord.id, content: currentWord.content, nextWordId: currentWord?.nextWord?.id, showPlus: false });
     currentWord = currentWord.nextWord;
   }
   // Words appear instantly
-  displayedWords.value = result; 
+  displayedWords.value = result;
 
   // Plus signs cascade in one-by-one
   for (const word of displayedWords.value) {
@@ -77,11 +97,42 @@ const loadWordsInstantly = async () => {
   }
 };
 
+const handleWordSubmit = (data) => {
+  // 1. Destructure the custom payload emitted from the Plus child component
+  // Plus.vue sends: { id, content, previous, next }
+  const { id, content, previous, next } = data;
+
+  // 2. Create the flat object for your displayedWords array
+  const newWordObj = {
+    id: id,
+    content: content,
+    nextWordId: next,
+    showPlus: true
+  };
+
+  // 3. Evaluate 'previous' from the event payload, NOT from the parent props
+  if (!previous) {
+    // Insert at the absolute front of the page
+    displayedWords.value.unshift(newWordObj);
+  } else {
+    // Find the word we are inserting AFTER using the emitted previous ID
+    const previousIndex = displayedWords.value.findIndex(word => word.id === previous);
+
+    if (previousIndex !== -1) {
+      // Update the pointer of the word preceding our new word
+      displayedWords.value[previousIndex].nextWordId = newWordObj.id;
+
+      // Splice the new word into the flat array layout exactly where it belongs
+      displayedWords.value.splice(previousIndex + 1, 0, newWordObj);
+    }
+  }
+};
+
 // Central logic initializer
 const initializePage = async () => {
   // Use props.id dynamically instead of hardcoding page one
-  await pageStore.fetchPage(props.id); 
-  
+  await pageStore.fetchPage(props.id);
+
   if (props.isEditMode) {
     loadWordsInstantly();
   } else {
@@ -120,7 +171,7 @@ watch(() => props.isEditMode, () => {
   line-height: 1.5;
   padding: 10px;
   display: flex;
-  flex-wrap: wrap; 
+  flex-wrap: wrap;
   gap: 8px;
 }
 .word-input {
