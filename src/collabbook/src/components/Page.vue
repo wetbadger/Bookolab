@@ -19,7 +19,7 @@
   <div v-else class="sentence-container">
     <span v-if="isEditMode" class="plus-sign">
       <Plus
-        :previous="pageStore.previousPageLastWordId"
+        :previous="lastWordIdOfPreviousPage"
         :next="firstWord?.id"
         @submit="handleWordSubmit"
       />
@@ -53,43 +53,49 @@ const props = defineProps({
   isEditMode: { type: Boolean, default: false }
 });
 
-const messageFromChild = ref('')
-
 const pageStore = usePageStore();
 const dbError = computed(() => pageStore.error);
 const displayedWords = ref([]);
-const firstWord = ref([]);
+const firstWord = ref(null);
+const lastWordIdOfPreviousPage = ref(null);
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-// Stream words one-by-one for standard viewing
-const streamWordsRealTime = async () => {
-  displayedWords.value = [];
-  firstWord.value = pageStore.records?.firstWord;
-  let currentWord = firstWord.value;
-  while (currentWord) {
-    displayedWords.value.push({ id: currentWord.id, content: currentWord.content, nextWordId: currentWord?.nextWord?.id });
-    await delay(30); // Fast stream speed
-    currentWord = currentWord.nextWord;
-  }
-};
-
 // Instantly load all words into the array for immediate editing
-const loadWordsInstantly = async () => {
+const loadWords = async (streamWordsInRealTime, loadPlusSigns) => {
   const result = [];
-  firstWord.value = pageStore.records?.firstWord;
+  
+  firstWord.value = pageStore.records?.firstWord || null; 
+  lastWordIdOfPreviousPage.value = pageStore.records?.lastWordIdOfPreviousPage;
   let currentWord = firstWord.value;
+
   while (currentWord) {
-    result.push({ id: currentWord.id, content: currentWord.content, nextWordId: currentWord?.nextWord?.id, showPlus: false });
+    const wordId = currentWord.id ? currentWord.id : lastWordIdOfPreviousPage.value;
+
+    result.push({ 
+      id: Number(wordId), // Force it to be a pure number
+      content: currentWord.content, 
+      nextWordId: currentWord?.nextWord?.id ? Number(currentWord.nextWord.id) : null, 
+      showPlus: false 
+    });
+
+    if (streamWordsInRealTime) {
+      displayedWords.value = [...result];
+      await delay(30);
+    }
+    
     currentWord = currentWord.nextWord;
   }
-  // Words appear instantly
-  displayedWords.value = result;
 
-  // Plus signs cascade in one-by-one
-  for (const word of displayedWords.value) {
-    await delay(40); // Adjust this delay to make the plus signs spawn faster/slower
-    word.showPlus = true;
+  if (!streamWordsInRealTime) {
+    displayedWords.value = result;
+  }
+
+  if (loadPlusSigns) {
+    for (const word of displayedWords.value) {
+      await delay(40);
+      word.showPlus = true;
+    }
   }
 };
 
@@ -133,9 +139,9 @@ const initializePage = async () => {
   await pageStore.fetchPage(props.id);
 
   if (props.isEditMode) {
-    loadWordsInstantly();
+    loadWords(false, true);
   } else {
-    streamWordsRealTime();
+    loadWords(true, false);
   }
 };
 
@@ -146,9 +152,9 @@ onMounted(() => {
 // Watch for route switches (e.g., clicking 'Edit' while viewing)
 watch(() => props.isEditMode, () => {
   if (props.isEditMode) {
-    loadWordsInstantly();
+    loadWords(false, true);
   } else {
-    streamWordsRealTime();
+    loadWords(true, false);
   }
 });
 </script>

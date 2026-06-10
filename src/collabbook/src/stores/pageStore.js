@@ -1,5 +1,5 @@
 /*
-BUGS: creating a word at the beginning of the second page causes that word to appear on the first page upon refresh
+BUGS:
  */
 
 // src/stores/pageStore.js
@@ -51,6 +51,7 @@ export const usePageStore = defineStore('pageStore', {
         const newWordBackend = response.data;
         if (!this.records) return newWordBackend;
 
+        console.log(previousWordId);
         // Check if the inserted word is explicitly targeting the head of the current visible page
         const isFirstWordOnThisPage = !previousWordId || (nextWordId && Number(nextWordId) === Number(this.records.firstWord?.id));
 

@@ -80,9 +80,10 @@ public class PageService {
 
         Word currentEntity = page.getFirstWord();
         Word lastEntity = page.getLastWord();
+        Long lastWordIdOfPreviousPage = null;
 
         if (currentEntity == null || lastEntity == null) {
-            return new BoundedPageResponse(page.getId(), null, null);
+            return new BoundedPageResponse(page.getId(), null, null, null);
         }
 
         // 1. Create the head of our JSON tree
@@ -112,7 +113,16 @@ public class PageService {
                 .orElse(null); // Returns null if this word is the head of the list
         FlatLinkedWordDto flatLastWord = new FlatLinkedWordDto(lastEntity.getId(), lastEntity.getContent(), nextId, previousWordId);
 
-        return new BoundedPageResponse(page.getId(), headDto, flatLastWord);
+        // 4. Get the last word id of the previous page. 
+        // This will come in handy when inserting words at the beginning of pages.
+        if (id > 1) {
+            lastWordIdOfPreviousPage = pageRepository.findById(id - 1)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Page not found"))
+                .getLastWord()
+                .getId();
+        }
+
+        return new BoundedPageResponse(page.getId(), headDto, flatLastWord, lastWordIdOfPreviousPage);
     }
 
     @Transactional
