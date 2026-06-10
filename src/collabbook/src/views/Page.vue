@@ -16,33 +16,40 @@
     Loading database values...
   </div>
 
-  <div v-else class="sentence-container">
-    <span v-if="isEditMode" class="plus-sign">
-      <Plus
-        :previous="lastWordIdOfPreviousPage"
-        :next="firstWord?.id"
-        @submit="handleWordSubmit"
+<div v-else class="sentence-container">
+  <span v-if="isEditMode" class="plus-sign">
+    <Plus
+      :previous="lastWordIdOfPreviousPage"
+      :next="displayedWords[0]?.id || firstWord?.id"
+      :autoFocus="activePlusId === 'front'"
+      @submitWordStream="handleWordStreamSubmit"
+      @close="activePlusId = null"
+    />
+  </span>
+
+  <template v-for="(word, index) in displayedWords" :key="word.id">
+    <span :id="word.id">
+      <Word 
+        :data="word" 
+        :disabled="!!word.isPending && isSaving" 
       />
     </span>
 
-    <template v-for="word in displayedWords" :key="word.id">
-      <span :id="word.id">
-        <Word :data="word" />
-      </span>
-
-      <span v-if="isEditMode && word.showPlus" class="plus-sign">
-        <Plus
-          :previous="word.id"
-          :next="word.nextWordId"
-          @submit="handleWordSubmit"
-        />
-      </span>
-    </template>
-  </div>
+    <span v-if="isEditMode && word.showPlus" class="plus-sign">
+      <Plus
+        :previous="word.id"
+        :next="displayedWords[index + 1]?.id || word.nextWordId"
+        :autoFocus="activePlusId === word.id"
+        @submitWordStream="handleWordStreamSubmit"
+        @close="activePlusId = null"
+      />
+    </span>
+  </template>
+</div>
 </template>
 
 <script setup>
-import { onMounted, ref, computed, watch } from 'vue';
+import { onMounted, ref, computed, watch, nextTick } from 'vue';
 import { usePageStore } from '@/stores/pageStore';
 import Word from '@/components/Word.vue';
 import Plus from '@/components/Plus.vue';
@@ -56,11 +63,114 @@ const props = defineProps({
 
 const pageStore = usePageStore();
 const dbError = computed(() => pageStore.error);
-const displayedWords = ref([]);
+// const displayedWords = ref([]);
 const firstWord = ref(null);
 const lastWordIdOfPreviousPage = ref(null);
+const isSaving = ref(false);
+
+const debounceTimer = ref(null);
+const streamAnchorPrevious = ref(null); // The original stable ID where the sentence started
+const streamAnchorNext = ref(null);     // The original next ID ahead of the sentence
+const pendingStream = ref([]);          // Holds the text values typed in this session
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Tracks which plus component should automatically open up next
+const activePlusId = ref(null);
+
+// 🌟 THE SINGLE SOURCE OF TRUTH: 
+// This computed array updates automatically whenever pageStore.records changes!
+const displayedWords = computed(() => {
+  const result = [];
+  if (!pageStore.records?.firstWord) return result;
+
+  let current = pageStore.records.firstWord;
+  while (current) {
+    result.push({
+      id: Number(current.id),
+      content: current.content,
+      nextWordId: current.nextWord?.id ? Number(current.nextWord.id) : null,
+      showPlus: true,
+      isPending: false // Confirmed stored elements
+    });
+    current = current.nextWord;
+  }
+
+  // 🔄 OPTIMISTIC LAYER: If the user is typing, smoothly inject their temporary words
+  // right into the computed display output until the store action returns.
+  if (pendingStream.value.length > 0) {
+    const tempWordsFormatted = pendingStream.value.map((content, idx) => ({
+      id: `temp_stream_${idx}`,
+      content: content,
+      showPlus: true,
+      isPending: true
+    }));
+
+    if (!streamAnchorPrevious.value) {
+      result.unshift(...tempWordsFormatted);
+    } else {
+      const anchorIdx = result.findIndex(w => Number(w.id) === Number(streamAnchorPrevious.value));
+      if (anchorIdx !== -1) {
+        result.splice(anchorIdx + 1, 0, ...tempWordsFormatted);
+      }
+    }
+  }
+
+  return result;
+});
+
+const handleWordStreamSubmit = (data) => {
+  const { content, previous, next } = data;
+
+  if (pendingStream.value.length === 0) {
+    streamAnchorPrevious.value = previous;
+    streamAnchorNext.value = next;
+  }
+
+  // Pushing to this array instantly re-calculates the computed 'displayedWords' layout!
+  pendingStream.value.push(content);
+
+  // Set the next active input focus destination indicator
+  activePlusId.value = `temp_stream_${pendingStream.value.length - 1}`;
+
+  if (debounceTimer.value) clearTimeout(debounceTimer.value);
+  debounceTimer.value = setTimeout(() => {
+    sendStreamToBackend();
+  }, 2000);
+};
+
+const sendStreamToBackend = async () => {
+  if (pendingStream.value.length === 0) return;
+
+  const wordsToSend = [...pendingStream.value];
+  const previousAnchor = streamAnchorPrevious.value;
+
+  try {
+    isSaving.value = true;
+
+    // This updates the central Pinia data model cache directly
+    const savedWords = await pageStore.addBulkWords({
+      pageId: props.id,
+      previousWordId: previousAnchor,
+      words: wordsToSend
+    });
+
+    // Reset local queue positions
+    pendingStream.value = [];
+    streamAnchorPrevious.value = null;
+    streamAnchorNext.value = null;
+
+    // Set focus to the last saved word
+    if (savedWords.length > 0) {
+      activePlusId.value = savedWords[savedWords.length - 1].id;
+    }
+
+  } catch (error) {
+    console.error("Failed stream synchronization:", error);
+  } finally {
+    isSaving.value = false;
+  }
+};
 
 // Instantly load all words into the array for immediate editing
 const loadWords = async (streamWordsInRealTime, loadPlusSigns) => {
@@ -73,12 +183,13 @@ const loadWords = async (streamWordsInRealTime, loadPlusSigns) => {
   while (currentWord) {
     const wordId = currentWord.id ? currentWord.id : lastWordIdOfPreviousPage.value;
 
-    result.push({ 
-      id: Number(wordId), // Force it to be a pure number
-      content: currentWord.content, 
-      nextWordId: currentWord?.nextWord?.id ? Number(currentWord.nextWord.id) : null, 
-      showPlus: false 
-    });
+  result.push({ 
+    id: Number(wordId), 
+    content: currentWord.content, 
+    nextWordId: currentWord?.nextWord?.id ? Number(currentWord.nextWord.id) : null, 
+    showPlus: false,
+    isPending: false
+  });
 
     if (streamWordsInRealTime) {
       displayedWords.value = [...result];
@@ -96,34 +207,6 @@ const loadWords = async (streamWordsInRealTime, loadPlusSigns) => {
     for (const word of displayedWords.value) {
       await delay(40);
       word.showPlus = true;
-    }
-  }
-};
-
-const handleWordSubmit = (data) => {
-  const { id, content, previous, next } = data;
-
-  const newWordObj = {
-    id: id,
-    content: content,
-    nextWordId: next,
-    showPlus: true
-  };
-
-  const currentFirstWordId = displayedWords.value[0]?.id;
-
-  // It belongs at the front if there's no previous ID,
-  // OR if the 'next' ID matches the current first word on the screen.
-  const isInsertingAtFront = !previous || (next && Number(next) === Number(currentFirstWordId));
-
-  if (isInsertingAtFront) {
-    displayedWords.value.unshift(newWordObj);
-  } else {
-    const previousIndex = displayedWords.value.findIndex(word => Number(word.id) === Number(previous));
-
-    if (previousIndex !== -1) {
-      displayedWords.value[previousIndex].nextWordId = newWordObj.id;
-      displayedWords.value.splice(previousIndex + 1, 0, newWordObj);
     }
   }
 };

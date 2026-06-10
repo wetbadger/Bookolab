@@ -50,6 +50,20 @@ public class WordController {
         return wordService.createWord(word, currentPageId, previousWordId);
     }
 
+    @PostMapping("/bulk")
+    @ResponseStatus(HttpStatus.CREATED)
+    public Word[] createWords(
+            @RequestBody String[] words,
+            @RequestParam(required = true) Long currentPageId,
+            @RequestParam(required = false) Long previousWordId
+    ) throws InterruptedException {
+        for (int i = 0; i < words.length; i++) {
+            System.out.println(String.format("Word being created... %s %d", words[i], previousWordId));
+        }
+        Thread.sleep(2000);
+        return wordService.createWords(words, currentPageId, previousWordId);
+    }
+
     @PutMapping("/{id}")
     public Word updateWord(@PathVariable Long id, @RequestBody Word wordDetails) {
         return wordService.updateWord(id, wordDetails);

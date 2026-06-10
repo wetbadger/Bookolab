@@ -8,7 +8,6 @@
       maxlength="30"
       placeholder="Type word..."
       class="word-input"
-      :disabled="isSubmitting"
       @keydown.enter.prevent="submitWord"
       @keydown.space.prevent="submitWord"
       @blur="cancelEditing"
@@ -26,76 +25,56 @@
 </template>
 
 <script setup>
-import { ref, nextTick } from 'vue';
-import { useRoute } from 'vue-router';
-import { usePageStore } from '@/stores/pageStore';
+import { ref, nextTick, watch } from 'vue';
 
-const emit = defineEmits(['submit']);
-// Grab the 'previous' word prop passed down from the parent template
+const emit = defineEmits(['submitWordStream', 'close']);
+
 const props = defineProps({
-  previous: {
-    type: Number,
-    default: null // Will be null for the very first plus sign on the page
-  },
-  next: {
-    type: Number,
-    default: null
-  }
+  // Accept either a database Number ID or a temporary String token safely
+  previous: { type: [String, Number], default: null },
+  next: { type: [String, Number], default: null },
+  autoFocus: { type: Boolean, default: false }
 });
 
-const route = useRoute();
-const pageStore = usePageStore();
-
 const isEditing = ref(false);
-const isSubmitting = ref(false);
 const newWord = ref('');
 const inputRef = ref(null);
 
-// Switch to input field and auto-focus it
 const startEditing = async () => {
   isEditing.value = true;
-  // NextTick ensures the DOM has updated and the input exists before we try to focus it
   await nextTick();
   inputRef.value?.focus();
 };
 
-// Reset state if the user clicks away without typing anything
 const cancelEditing = () => {
-  if (!isSubmitting.value) {
-    isEditing.value = false;
-    newWord.value = '';
-  }
+  isEditing.value = false;
+  newWord.value = '';
+  emit('close');
 };
 
-// Handle submitting to the backend
-const submitWord = async () => {
+const submitWord = () => {
   const trimmedWord = newWord.value.trim();
   if (!trimmedWord) { cancelEditing(); return; }
 
-  try {
-    isSubmitting.value = true;
-    const currentPageId = Number(route.params.id);
+  // Ship the word up to the parent immediately
+  emit('submitWordStream', {
+    content: trimmedWord,
+    previous: props.previous,
+    next: props.next
+  });
 
-    // 1. Await the server's database response
-    const savedWord = await pageStore.addWord(trimmedWord, currentPageId, props.previous, props.next);
-
-    // 2. NOW emit the real, database-allocated ID to the parent
-    emit('submit', {
-      id: savedWord.id, // 100% valid database ID
-      content: trimmedWord,
-      previous: props.previous,
-      next: props.next
-    });
-
-    newWord.value = '';
-    isEditing.value = false;
-  } catch (error) {
-    console.error("Failed to add word:", error);
-    inputRef.value?.focus();
-  } finally {
-    isSubmitting.value = false;
-  }
+  // Reset this local input instance. 
+  // A completely separate Plus component will catch the focus next!
+  newWord.value = '';
+  isEditing.value = false;
 };
+
+// Watch for the parent telling this specific component instance to open up
+watch(() => props.autoFocus, (newValue) => {
+  if (newValue === true) {
+    startEditing();
+  }
+}, { immediate: true });
 </script>
 
 <style scoped>

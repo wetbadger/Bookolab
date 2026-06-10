@@ -110,6 +110,87 @@ export const usePageStore = defineStore('pageStore', {
       } finally {
         this.uploading = false;
       }
+    },
+    async addBulkWords({ pageId, previousWordId, words }) {
+      this.uploading = true;
+      this.error = null;
+
+      const requestBody = words; 
+      const config = {
+        params: {
+          currentPageId: Number(pageId),
+          previousWordId: previousWordId ? Number(previousWordId) : null
+        }
+      };
+
+      try {
+        const response = await axios.post(`${API_BASE_URL}/words/bulk`, requestBody, config);
+        const newWordsBackend = response.data; // Array of real backend words
+
+        // ========================================================
+        // MASTER STORE RESET: Re-link the store cache in memory
+        // ========================================================
+        if (this.records && Number(this.records.id) === Number(pageId)) {
+          
+          if (!previousWordId) {
+            // Case A: Grafting onto the absolute front of the page
+            const oldFirstWord = this.records.firstWord;
+            
+            // Link our new backend objects sequentially in the store cache
+            for (let i = 0; i < newWordsBackend.length - 1; i++) {
+              newWordsBackend[i].nextWord = newWordsBackend[i + 1];
+            }
+            // Attach the old list to the tail of our new stream
+            newWordsBackend[newWordsBackend.length - 1].nextWord = oldFirstWord;
+            
+            // Set the new head of the page
+            this.records.firstWord = newWordsBackend[0];
+          } else {
+            // Case B: Grafting anywhere in the middle or end of the page
+            let current = this.records.firstWord;
+            let foundAnchor = false;
+
+            // Traverse the store's linked list until we find our previousWordId anchor
+            while (current) {
+              if (Number(current.id) === Number(previousWordId)) {
+                const oldNextWord = current.nextWord;
+
+                // Link the new backend items together in memory
+                for (let i = 0; i < newWordsBackend.length - 1; i++) {
+                  newWordsBackend[i].nextWord = newWordsBackend[i + 1];
+                }
+                // Point the tail of the new words to the old remaining chain
+                newWordsBackend[newWordsBackend.length - 1].nextWord = oldNextWord;
+
+                // Point the anchor word to the head of our new words
+                current.nextWord = newWordsBackend[0];
+                
+                foundAnchor = true;
+                break;
+              }
+              current = current.nextWord;
+            }
+          }
+          
+          // Update page-level bounding hooks if the tail has changed
+          if (newWordsBackend.length > 0) {
+            const lastNewWord = newWordsBackend[newWordsBackend.length - 1];
+            if (!lastNewWord.nextWord) {
+              this.records.lastWord = lastNewWord;
+            }
+          }
+        }
+
+        // Return the real words to the component for immediate UI tracking
+        return newWordsBackend;
+
+      } catch (err) {
+        this.error = err;
+        console.error("Bulk store synchronization failed:", err);
+        throw err;
+      } finally {
+        this.uploading = false;
+      }
     }
   }
 });
