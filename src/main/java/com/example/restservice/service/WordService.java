@@ -12,7 +12,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
@@ -128,94 +127,6 @@ public class WordService {
         pageOne.setFirstWord(newWord);
         pageRepository.save(pageOne);
         return wordRepository.save(newWord);
-    }
-
-    /**
-     * Create a series of words.
-     *
-     * Inserts a series of words after the previous word.
-     * If there is no previous word, assume we are at the beginning and change the first
-     * page's first word to the first word we are creating.
-     *
-     * @param newWords A list of words
-     * @param currentPage Used to decide if we should change the firtsWord or lastWord of the current page.
-     * @param previousWordId Description of the input parameter.
-     * @return the created word.
-     */
-    @Transactional
-    public Word[] createWords(String[] newWords, Long currentPageId, @Nullable Long previousWordId) {
-        if (newWords == null || newWords.length == 0) {
-            return new Word[0];
-        }
-
-        Word[] words = new Word[newWords.length];
-
-        // 1. Instantly instantiate all Word entities in memory
-        for (int i = 0; i < newWords.length; i++) {
-            words[i] = new Word(newWords[i]);
-        }
-
-        // 2. Link the new words together to form a cohesive mini-chain
-        for (int i = 0; i < words.length - 1; i++) {
-            words[i].setNextWord(words[i + 1]);
-        }
-
-        // 3. Extract the first and last words of our new chain
-        Word firstNewWord = words[0];
-        Word lastNewWord = words[words.length - 1];
-
-        // 4. Now use your single insert logic to graft the entire chain in at once!
-        if (previousWordId != null) {
-            Word previousWord = wordRepository.findById(previousWordId)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Previous word not found"));
-
-            // Cache the original next target anchor point
-            Word nextWordAnchor = previousWord.getNextWord();
-
-            // Sever the old link to satisfy database unique constraints
-            previousWord.setNextWord(null);
-            wordRepository.saveAndFlush(previousWord);
-
-            // Point the tail of our new chain to the old anchor point
-            lastNewWord.setNextWord(nextWordAnchor);
-            
-            // Save the new chain elements down to the database
-            wordRepository.saveAll(Arrays.asList(words));
-            wordRepository.flush();
-
-            // Point our previous anchor to the head of our new chain
-            previousWord.setNextWord(firstNewWord);
-            wordRepository.save(previousWord);
-
-            // Manage page boundary links safely using the last word of the new chain
-            Page currentPage = pageRepository.findById(currentPageId)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Current page not found"));
-
-            Page pageWithLastWord = pageRepository.findByLastWord(previousWord).orElse(null);
-            Page pageWithFirstWord = pageRepository.findByFirstWord(nextWordAnchor).orElse(null);
-
-            if (pageWithLastWord != null && Objects.equals(pageWithLastWord.getId(), currentPageId)) {
-                currentPage.setLastWord(lastNewWord); // The tail of our stream is now the page's last word
-            }
-            if (pageWithFirstWord != null && Objects.equals(pageWithFirstWord.getId(), currentPageId)) {
-                currentPage.setFirstWord(firstNewWord); // The head of our stream is now the page's first word
-            }
-            pageRepository.save(currentPage);
-
-        } else {
-            // Handle insertion at the absolute front of page 1
-            Page pageOne = pageRepository.findById(1L)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Page not found"));
-            
-            lastNewWord.setNextWord(pageOne.getFirstWord());
-            wordRepository.saveAll(Arrays.asList(words));
-            wordRepository.flush();
-
-            pageOne.setFirstWord(firstNewWord);
-            pageRepository.save(pageOne);
-        }
-
-        return words;
     }
 
     @Transactional
