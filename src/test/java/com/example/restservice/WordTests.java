@@ -12,124 +12,132 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.annotation.DirtiesContext;
 
+import java.util.UUID;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
 @DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_EACH_TEST_METHOD)
 class WordTests {
 
-	@Autowired
-	private WordService wordService;
+    @Autowired
+    private WordService wordService;
 
-	@Autowired
-	private WordRepository wordRepository;
+    @Autowired
+    private WordRepository wordRepository;
 
-	@Autowired
-	private PageRepository pageRepository;
+    @Autowired
+    private PageRepository pageRepository;
 
     private Word wordA;
-	private Word wordC;
-	private Page testPage = new Page();
+    private Word wordC;
+    private Page testPage = new Page();
 
-	@BeforeEach
-	void setUp() {
-		// Clear repositories to ensure a pristine state for every test execution
-		pageRepository.deleteAll();
-		wordRepository.deleteAll();
+    // Helper method to instantiate words cleanly with required localId fields
+    private Word createTestWord(String content) {
+        Word word = new Word(content, "");
+        word.setLocalId(UUID.randomUUID().toString().substring(0, 8));
+        return word;
+    }
 
-		// Build a baseline linked list chain: Page -> [A] -> [C]
-		wordA = wordRepository.save(new Word("WordA"));
-		wordC = wordRepository.save(new Word("WordC"));
+    @BeforeEach
+    void setUp() {
+        // Clear repositories to ensure a pristine state for every test execution
+        pageRepository.deleteAll();
+        wordRepository.deleteAll();
 
-		wordA.setNextWord(wordC);
-		wordA = wordRepository.save(wordA);
+        // Build a baseline linked list chain: Page -> [A] -> [C]
+        wordA = wordRepository.save(createTestWord("WordA"));
+        wordC = wordRepository.save(createTestWord("WordC"));
 
-		// Assign a page bounding this chain
-		// testPage.setId(1L);
-		testPage.setFirstWord(wordA);
-		testPage.setLastWord(wordC);
-		testPage = pageRepository.save(testPage);
-	}
+        wordA.setNextWord(wordC);
+        wordA = wordRepository.save(wordA);
 
-	@Test
-	void testCreateWord_SpliceInMiddle_UpdatesPointersCorrectly() {
-		// Arrange: Prepare a new word to inject between A and C
-		Word wordB = new Word("WordB");
+        // Assign a page bounding this chain
+        testPage.setFirstWord(wordA);
+        testPage.setLastWord(wordC);
+        testPage = pageRepository.save(testPage);
+    }
 
-		// Act: Create WordB pointing to WordA as its previous anchor
-		Word savedB = wordService.createWord(wordB, testPage.getId(), wordA.getId());
+    @Test
+    void testCreateWord_SpliceInMiddle_UpdatesPointersCorrectly() {
+        // Arrange: Prepare a new word to inject between A and C
+        Word wordB = createTestWord("WordB");
 
-		// Assert: Verify WordB stole WordA's old next pointer (WordC)
-		assertNotNull(savedB.getId());
-		assertNotNull(savedB.getNextWord());
-		assertEquals(wordC.getId(), savedB.getNextWord().getId());
+        // Act: Create WordB pointing to WordA as its previous anchor
+        Word savedB = wordService.createWord(wordB, testPage.getId(), "abc123", wordA.getId(), null);
 
-		// Assert: Verify WordA now links directly forward to WordB
-		Word updatedA = wordRepository.findById(wordA.getId()).orElseThrow();
-		assertNotNull(updatedA.getNextWord());
-		assertEquals(savedB.getId(), updatedA.getNextWord().getId());
-	}
+        // Assert: Verify WordB stole WordA's old next pointer (WordC)
+        assertNotNull(savedB.getId());
+        assertNotNull(savedB.getNextWord());
+        assertEquals(wordC.getId(), savedB.getNextWord().getId());
 
-	@Test
-	void testCreateWord_NoPreviousId_CreatesIsolatedOrHeadNode() {
-		// Act: Create a standalone word with no previous reference (Prepends to Page 1)
-		Word standalone = wordService.createWord(new Word("Standalone"), testPage.getId(), null);
+        // Assert: Verify WordA now links directly forward to WordB
+        Word updatedA = wordRepository.findById(wordA.getId()).orElseThrow();
+        assertNotNull(updatedA.getNextWord());
+        assertEquals(savedB.getId(), updatedA.getNextWord().getId());
+    }
 
-		// Assert: Verify it saved cleanly
-		assertNotNull(standalone.getId());
-		
-		// FIX: Verify that it correctly pushed WordA down the line!
-		assertNotNull(standalone.getNextWord());
-		assertEquals(wordA.getId(), standalone.getNextWord().getId());
-		
-		// Optional: Verify Page 1's boundary updated to point to the new head
-		Page updatedPage = pageRepository.findById(1L).orElseThrow();
-		assertEquals(standalone.getId(), updatedPage.getFirstWord().getId());
-	}
+    @Test
+    void testCreateWord_NoPreviousId_CreatesIsolatedOrHeadNode() {
+        // Act: Create a standalone word with no previous reference (Prepends to Page 1)
+        Word standalone = wordService.createWord(createTestWord("Standalone"), testPage.getId(), "456def",  null, null);
 
-	@Test
-	void testDeleteWord_MiddleNode_TightensChain() {
-		// Arrange: Insert WordB to establish an [A] -> [B] -> [C] sequence
-		Word wordB = wordService.createWord(new Word("WordB"), testPage.getId(), wordA.getId());
+        // Assert: Verify it saved cleanly
+        assertNotNull(standalone.getId());
+        
+        // Verify that it correctly pushed WordA down the line!
+        assertNotNull(standalone.getNextWord());
+        assertEquals(wordA.getId(), standalone.getNextWord().getId());
+        
+        // Dynamic look up instead of hardcoded 1L boundary tracking
+        Page updatedPage = pageRepository.findById(testPage.getId()).orElseThrow();
+        assertEquals(standalone.getId(), updatedPage.getFirstWord().getId());
+    }
 
-		// Act: Delete the middleman (WordB)
-		wordService.deleteWord(wordB.getId());
+    @Test
+    void testDeleteWord_MiddleNode_TightensChain() {
+        // Arrange: Insert WordB to establish an [A] -> [B] -> [C] sequence
+        Word wordB = wordService.createWord(createTestWord("WordB"), testPage.getId(), "789ghi", wordA.getId(), null);
 
-		// Assert: WordB should be completely deleted
-		assertFalse(wordRepository.existsById(wordB.getId()));
+        // Act: Delete the middleman (WordB)
+        wordService.deleteWord(wordB.getId());
 
-		// Assert: The chain tightened back up. WordA must point straight to WordC
-		Word updatedA = wordRepository.findById(wordA.getId()).orElseThrow();
-		assertNotNull(updatedA.getNextWord());
-		assertEquals(wordC.getId(), updatedA.getNextWord().getId());
-	}
+        // Assert: WordB should be completely deleted
+        assertFalse(wordRepository.existsById(wordB.getId()));
 
-	@Test
-	void testDeleteWord_FirstWordOfPage_ShiftsPageBoundaryForward() {
-		// Act: Delete WordA, which is currently the 'firstWord' boundary of testPage
-		wordService.deleteWord(wordA.getId());
+        // Assert: The chain tightened back up. WordA must point straight to WordC
+        Word updatedA = wordRepository.findById(wordA.getId()).orElseThrow();
+        assertNotNull(updatedA.getNextWord());
+        assertEquals(wordC.getId(), updatedA.getNextWord().getId());
+    }
 
-		// Assert: The page should automatically shift its head boundary to WordC
-		Page updatedPage = pageRepository.findById(testPage.getId()).orElseThrow();
-		assertNotNull(updatedPage.getFirstWord());
-		assertEquals(wordC.getId(), updatedPage.getFirstWord().getId());
-	}
+    @Test
+    void testDeleteWord_FirstWordOfPage_ShiftsPageBoundaryForward() {
+        // Act: Delete WordA, which is currently the 'firstWord' boundary of testPage
+        wordService.deleteWord(wordA.getId());
 
-	@Test
-	void testDeleteWord_SingleWordPage_CollapsesPageBoundaries() {
-		// Arrange: Set up an isolated page containing exactly ONE word
-		Word loneWord = wordRepository.save(new Word("Lone"));
-		Page singleWordPage = new Page();
-		singleWordPage.setFirstWord(loneWord);
-		singleWordPage.setLastWord(loneWord);
-		singleWordPage = pageRepository.save(singleWordPage);
+        // Assert: The page should automatically shift its head boundary to WordC
+        Page updatedPage = pageRepository.findById(testPage.getId()).orElseThrow();
+        assertNotNull(updatedPage.getFirstWord());
+        assertEquals(wordC.getId(), updatedPage.getFirstWord().getId());
+    }
 
-		// Act: Delete that single word
-		wordService.deleteWord(loneWord.getId());
+    @Test
+    void testDeleteWord_SingleWordPage_CollapsesPageBoundaries() {
+        // Arrange: Set up an isolated page containing exactly ONE word
+        Word loneWord = wordRepository.save(createTestWord("Lone"));
+        Page singleWordPage = new Page();
+        singleWordPage.setFirstWord(loneWord);
+        singleWordPage.setLastWord(loneWord);
+        singleWordPage = pageRepository.save(singleWordPage);
 
-		// Assert: Page boundaries must fully collapse to null instead of holding broken pointers
-		Page updatedPage = pageRepository.findById(singleWordPage.getId()).orElseThrow();
-		assertNull(updatedPage.getFirstWord());
-		assertNull(updatedPage.getLastWord());
-	}
+        // Act: Delete that single word
+        wordService.deleteWord(loneWord.getId());
+
+        // Assert: Page boundaries must fully collapse to null instead of holding broken pointers
+        Page updatedPage = pageRepository.findById(singleWordPage.getId()).orElseThrow();
+        assertNull(updatedPage.getFirstWord());
+        assertNull(updatedPage.getLastWord());
+    }
 }

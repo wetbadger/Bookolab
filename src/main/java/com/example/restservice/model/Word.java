@@ -13,6 +13,11 @@ public class Word {
     @GeneratedValue
     private Long id;
 
+    private String previousLocalId;
+
+    @Column(nullable = false)
+    private String localId;
+
     @Column(nullable = false, length = 30)
     private String content;
 
@@ -21,8 +26,9 @@ public class Word {
 
     protected Word() {}
 
-    public Word(String content) {
+    public Word(String content, String localId) {
         this.content = content;
+        this.localId = localId;
     }
 
     public String getContent() {
@@ -43,6 +49,14 @@ public class Word {
 
     public Word getNextWord() {
         return this.nextWord;
+    }
+
+    public void setLocalId(String localId) {
+        this.localId = localId;
+    }
+
+    public String getLocalId() {
+        return this.localId;
     }
 
     @Override

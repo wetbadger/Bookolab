@@ -1,7 +1,7 @@
 <template>
   <div class="plus-wrapper">
     <input
-      v-if="isEditing"
+      v-if="isComponentEditing"
       ref="inputRef"
       v-model="newWord"
       type="text"
@@ -26,76 +26,109 @@
 </template>
 
 <script setup>
-import { ref, nextTick } from 'vue';
+import { ref, nextTick, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { usePageStore } from '@/stores/pageStore';
 
 const emit = defineEmits(['submit']);
-// Grab the 'previous' word prop passed down from the parent template
 const props = defineProps({
-  previous: {
-    type: Number,
-    default: null // Will be null for the very first plus sign on the page
+  // Enforces data mapping discipline matching Spring Boot's Long vs String params
+  previous: { 
+    type: Number, 
+    default: null 
   },
-  next: {
-    type: Number,
-    default: null
+  next: { 
+    type: Number, 
+    default: null 
+  },
+  isEditing: { 
+    type: Boolean, 
+    default: false 
+  },
+  previousLocalId: { 
+    type: String, 
+    default: null 
   }
 });
 
 const route = useRoute();
 const pageStore = usePageStore();
 
-const isEditing = ref(false);
+const isComponentEditing = ref(false);
 const isSubmitting = ref(false);
 const newWord = ref('');
 const inputRef = ref(null);
 
-// Switch to input field and auto-focus it
+let localId = null;
+
 const startEditing = async () => {
-  isEditing.value = true;
-  // NextTick ensures the DOM has updated and the input exists before we try to focus it
+  if (!localId) localId = pageStore.generateSimpleId();
+  isComponentEditing.value = true;
   await nextTick();
   inputRef.value?.focus();
 };
 
-// Reset state if the user clicks away without typing anything
 const cancelEditing = () => {
   if (!isSubmitting.value) {
-    isEditing.value = false;
+    isComponentEditing.value = false;
     newWord.value = '';
   }
 };
 
-// Handle submitting to the backend
-const submitWord = async () => {
+const focusInnerInput = () => {
+  if (!localId) localId = pageStore.generateSimpleId();
+  isComponentEditing.value = true;
+  nextTick(() => {
+    inputRef.value?.focus();
+  });
+};
+
+defineExpose({ focusInnerInput });
+
+const submitWord = () => {
   const trimmedWord = newWord.value.trim();
   if (!trimmedWord) { cancelEditing(); return; }
 
-  try {
-    isSubmitting.value = true;
-    const currentPageId = Number(route.params.id);
+  if (!localId) localId = pageStore.generateSimpleId();
+  const currentLocalId = localId;
+  const currentPageId = Number(route.params.id);
 
-    // 1. Await the server's database response
-    const savedWord = await pageStore.addWord(trimmedWord, currentPageId, props.previous, props.next);
+  // 1. OPTIMISTIC PASS: Broadcast immediately to layout to construct the next inline button
+  emit('submit', {
+    id: null, 
+    localId: currentLocalId, 
+    content: trimmedWord,
+    previous: props.previous,         // Pure Long (or null)
+    next: props.next,                 // Pure Long (or null)
+    previousLocalId: props.previousLocalId // Pure String UUID (or null)
+  });
 
-    // 2. NOW emit the real, database-allocated ID to the parent
-    emit('submit', {
-      id: savedWord.id, // 100% valid database ID
-      content: trimmedWord,
-      previous: props.previous,
-      next: props.next
-    });
+  // Re-initialize this UI input slot completely so it is ready for reuse
+  newWord.value = '';
+  isComponentEditing.value = false;
+  localId = null; 
 
-    newWord.value = '';
-    isEditing.value = false;
-  } catch (error) {
-    console.error("Failed to add word:", error);
-    inputRef.value?.focus();
-  } finally {
-    isSubmitting.value = false;
-  }
+  // 2. ASYNC IN-FLIGHT DISPATCH: Non-blocking background thread worker
+  pageStore.addWord(
+    trimmedWord, 
+    currentPageId, 
+    currentLocalId,
+    props.previous, 
+    props.next, 
+    props.previousLocalId
+  ).then((savedWord) => {
+    console.log(`Successfully saved background word. Local: ${currentLocalId} -> DB ID: ${savedWord?.id}`);
+  }).catch((error) => {
+    console.error("Critical background execution failure:", error);
+  });
 };
+
+onMounted(() => {
+  isComponentEditing.value = props.isEditing;
+  if (props.isEditing) {
+    localId = pageStore.generateSimpleId();
+  }
+});
 </script>
 
 <style scoped>

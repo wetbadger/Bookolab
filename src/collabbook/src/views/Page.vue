@@ -19,22 +19,26 @@
   <div v-else class="sentence-container">
     <span v-if="isEditMode" class="plus-sign">
       <Plus
-        :previous="lastWordIdOfPreviousPage"
-        :next="firstWord?.id"
-        @submit="handleWordSubmit"
+        :ref="(el) => { if (el) plusRefs['start'] = el }"
+        :previous="lastWordIdOfPreviousPage ? Number(lastWordIdOfPreviousPage) : null"
+        :next="typeof firstWord?.id === 'number' ? firstWord.id : null"
+        :previousLocalId="null"
+        @submit="(data) => handleWordSubmit(data, 0)"
       />
     </span>
 
-    <template v-for="word in displayedWords" :key="word.id">
+    <template v-for="(word, index) in displayedWords" :key="word.viewKey">
       <span :id="word.id">
         <Word :data="word" />
       </span>
 
       <span v-if="isEditMode && word.showPlus" class="plus-sign">
         <Plus
-          :previous="word.id"
-          :next="word.nextWordId"
-          @submit="handleWordSubmit"
+          :ref="(el) => { if (el) plusRefs[word.viewKey] = el }"
+          :previous="typeof word.id === 'number' ? word.id : null"
+          :next="typeof displayedWords[index + 1]?.id === 'number' ? displayedWords[index + 1].id : null"
+          :previousLocalId="word.localId" 
+          @submit="(data) => handleWordSubmit(data, index + 1)"
         />
       </span>
     </template>
@@ -42,12 +46,11 @@
 </template>
 
 <script setup>
-import { onMounted, ref, computed, watch } from 'vue';
+import { onMounted, ref, computed, watch, nextTick, onBeforeUpdate } from 'vue';
 import { usePageStore } from '@/stores/pageStore';
 import Word from '@/components/Word.vue';
 import Plus from '@/components/Plus.vue';
 
-// Define the incoming props from Vue Router
 const props = defineProps({
   id: { type: String, required: true },
   isEditMode: { type: Boolean, default: false },
@@ -60,12 +63,16 @@ const displayedWords = ref([]);
 const firstWord = ref(null);
 const lastWordIdOfPreviousPage = ref(null);
 
+const plusRefs = ref({});
+
+onBeforeUpdate(() => {
+  plusRefs.value = {};
+});
+
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-// Instantly load all words into the array for immediate editing
 const loadWords = async (streamWordsInRealTime, loadPlusSigns) => {
   const result = [];
-  
   firstWord.value = pageStore.records?.firstWord || null; 
   lastWordIdOfPreviousPage.value = pageStore.records?.lastWordIdOfPreviousPage;
   let currentWord = firstWord.value;
@@ -74,17 +81,18 @@ const loadWords = async (streamWordsInRealTime, loadPlusSigns) => {
     const wordId = currentWord.id ? currentWord.id : lastWordIdOfPreviousPage.value;
 
     result.push({ 
-      id: Number(wordId), // Force it to be a pure number
+      id: Number(wordId), 
       content: currentWord.content, 
       nextWordId: currentWord?.nextWord?.id ? Number(currentWord.nextWord.id) : null, 
-      showPlus: false 
+      showPlus: false,
+      localId: null,                  // FIX: Pure null for verified database items
+      viewKey: 'db-' + Number(wordId) // FIX: Dedicated UI lookup string key
     });
 
     if (streamWordsInRealTime) {
       displayedWords.value = [...result];
       await delay(30);
     }
-    
     currentWord = currentWord.nextWord;
   }
 
@@ -100,57 +108,58 @@ const loadWords = async (streamWordsInRealTime, loadPlusSigns) => {
   }
 };
 
-const handleWordSubmit = (data) => {
-  const { id, content, previous, next } = data;
+const handleWordSubmit = async (data, originIndex) => {
+  const { id, localId, content, previous, next, previousLocalId } = data;
 
   const newWordObj = {
-    id: id,
+    id: id ? Number(id) : null, 
+    localId: localId,           
     content: content,
-    nextWordId: next,
-    showPlus: true
+    nextWordId: next ? Number(next) : null,
+    showPlus: true,
+    viewKey: localId // For newly typed words, the localId string doubles perfectly as a viewKey
   };
 
-  const currentFirstWordId = displayedWords.value[0]?.id;
-
-  // It belongs at the front if there's no previous ID,
-  // OR if the 'next' ID matches the current first word on the screen.
-  const isInsertingAtFront = !previous || (next && Number(next) === Number(currentFirstWordId));
-
-  if (isInsertingAtFront) {
+  if (originIndex === 0) {
     displayedWords.value.unshift(newWordObj);
   } else {
-    const previousIndex = displayedWords.value.findIndex(word => Number(word.id) === Number(previous));
+    let targetIndex = -1;
+    
+    if (previousLocalId) {
+      targetIndex = displayedWords.value.findIndex(word => word.localId === previousLocalId);
+    }
 
-    if (previousIndex !== -1) {
-      displayedWords.value[previousIndex].nextWordId = newWordObj.id;
-      displayedWords.value.splice(previousIndex + 1, 0, newWordObj);
+    if (targetIndex === -1 && previous !== null) {
+      targetIndex = displayedWords.value.findIndex(word => Number(word.id) === Number(previous));
+    }
+
+    if (targetIndex !== -1) {
+      if (displayedWords.value[targetIndex].id) {
+        displayedWords.value[targetIndex].nextWordId = newWordObj.id;
+      }
+      displayedWords.value.splice(targetIndex + 1, 0, newWordObj);
+    } else {
+      displayedWords.value.push(newWordObj);
     }
   }
+
+  await nextTick();
+  
+  // Target focus by our designated viewKey mapping value
+  if (plusRefs.value[newWordObj.viewKey]) {
+    plusRefs.value[newWordObj.viewKey].focusInnerInput();
+  }
 };
 
-// Central logic initializer
 const initializePage = async () => {
-  // Use props.id dynamically instead of hardcoding page one
   await pageStore.fetchPage(props.id);
-
-  if (props.isEditMode) {
-    loadWords(false, true);
-  } else {
-    loadWords(true, false);
-  }
+  loadWords(!props.isEditMode, props.isEditMode);
 };
 
-onMounted(() => {
-  initializePage();
-});
+onMounted(() => { initializePage(); });
 
-// Watch for route switches (e.g., clicking 'Edit' while viewing)
 watch(() => props.isEditMode, () => {
-  if (props.isEditMode) {
-    loadWords(false, true);
-  } else {
-    loadWords(true, false);
-  }
+  loadWords(!props.isEditMode, props.isEditMode);
 });
 </script>
 

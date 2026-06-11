@@ -29,7 +29,7 @@ export const usePageStore = defineStore('pageStore', {
         this.loading = false;
       }
     },
-    async addWord(content, currentPageId, previousWordId, nextWordId) {
+    async addWord(content, currentPageId, localId, previousWordId, nextWordId, previousLocalId=null) {
       this.uploading = true;
       this.error = null;
 
@@ -37,9 +37,14 @@ export const usePageStore = defineStore('pageStore', {
       const config = {
         params: {
           currentPageId: currentPageId,
-          previousWordId: previousWordId
+          localId: localId,
+          previousWordId: previousWordId,
+          previousLocalId: previousLocalId
         }
       };
+
+      console.log(requestBody);
+      console.log(config);
 
       try {
         const response = await axios.post(
@@ -51,31 +56,83 @@ export const usePageStore = defineStore('pageStore', {
         const newWordBackend = response.data;
         if (!this.records) return newWordBackend;
 
-        console.log(previousWordId);
         // Check if the inserted word is explicitly targeting the head of the current visible page
         const isFirstWordOnThisPage = !previousWordId || (nextWordId && Number(nextWordId) === Number(this.records.firstWord?.id));
 
         // --- CASE 1: Inserting at the very beginning of the current page ---
-        if (isFirstWordOnThisPage) {
-          const oldFirstWord = this.records.firstWord;
-          newWordBackend.nextWord = oldFirstWord;
-          this.records.firstWord = newWordBackend;
+// --- CASE 1: Inserting at the very beginning of the current page ---
+if (isFirstWordOnThisPage) {
+  console.log("case 1");
+  
+  // Attach our tracking ID onto the backend object so we don't lose it
+  newWordBackend.localId = localId;
 
-          if (!this.records.lastWord) {
-            this.records.lastWord = newWordBackend;
-          }
-        }
+  // 👇 FIX: Check if someone is already typing a recursive chain at the front.
+  // If the current firstWord is a temporary local word, we shouldn't steal its crown!
+  if (this.records.firstWord && this.records.firstWord.localId) {
+    let current = this.records.firstWord;
 
+    // Fast-forward to the end of the rapid-typing local chain
+    while (current.nextWord && current.nextWord.localId) {
+      current = current.nextWord;
+    }
+
+    // Splice the new word cleanly right after the last typed local word
+    const localNextWord = current.nextWord;
+    newWordBackend.nextWord = localNextWord;
+    current.nextWord = newWordBackend;
+
+    // If we somehow pushed all the way to the end of the page, update lastWord
+    if (this.records.lastWord && Number(current.id) === Number(this.records.lastWord.id)) {
+      this.records.lastWord = {
+        id: newWordBackend.id,
+        content: newWordBackend.content,
+        nextWordId: this.records.lastWord.nextWordId,
+        previousWordId: current.id
+      };
+    }
+  } else {
+    // Standard Head Insertion: Page is empty or we are genuinely pushing before a real DB word
+    const oldFirstWord = this.records.firstWord;
+    newWordBackend.nextWord = oldFirstWord;
+    this.records.firstWord = newWordBackend;
+
+    if (!this.records.lastWord) {
+      this.records.lastWord = newWordBackend;
+    }
+  }
+}
         // --- CASE 2 & 3: Inserting in the middle or at the end ---
         else {
+          console.log("case 2");
           let current = this.records.firstWord;
 
-          while (current && Number(current.id) !== Number(previousWordId)) {
+          // 1. Find the initial anchor node specified by the props
+          while (current) {
+            const matchByDbId = previousWordId && Number(current.id) === Number(previousWordId);
+            const matchByLocalId = previousLocalId && current.localId === previousLocalId;
+
+            if (matchByDbId || matchByLocalId) {
+              break; 
+            }
             current = current.nextWord;
           }
 
           if (current) {
-            const isAppendedToEnd = (Number(previousWordId) === Number(this.records.lastWord?.id));
+            // 2. 👇 CRITICAL TRAVERSAL OVERRIDE: 
+            // If we matched a standard database word (like "The"), but the user is rapidly 
+            // typing a recursive chain, "current.nextWord" will contain un-saved local words 
+            // (words with a string-based localId). We must skip past them to find the true 
+            // tail end of this rapid typing burst!
+            while (current.nextWord && current.nextWord.localId) {
+              current = current.nextWord;
+            }
+
+            // Attach our tracking ID onto the backend object so we don't lose it
+            newWordBackend.localId = localId;
+
+            // Evaluate if we are appending to the absolute end of the page
+            const isAppendedToEnd = (Number(current.id) === Number(this.records.lastWord?.id));
 
             if (isAppendedToEnd) {
               const nextPageWordId = this.records.lastWord?.nextWordId || null;
@@ -88,16 +145,16 @@ export const usePageStore = defineStore('pageStore', {
                 id: newWordBackend.id,
                 content: newWordBackend.content,
                 nextWordId: nextPageWordId,
-                previousWordId: previousWordId
+                previousWordId: current.id
               };
             } else {
-              // Standard Middle Insertion
+              // Standard Middle Insertion (safely inserting right after the last typed local word)
               const localNextWord = current.nextWord;
               newWordBackend.nextWord = localNextWord;
               current.nextWord = newWordBackend;
             }
           } else {
-            console.warn(`State desync: Could not find word ID ${previousWordId} in the current page chain.`);
+            console.warn(`State desync: Could not find anchor word.`);
           }
         }
 
@@ -110,6 +167,14 @@ export const usePageStore = defineStore('pageStore', {
       } finally {
         this.uploading = false;
       }
+    },
+    // A fast, non-crypto UUIDv4 look-alike generator for HTTP
+    generateSimpleId() {
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+        const r = Math.random() * 16 | 0;
+        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+      });
     }
   }
 });

@@ -10,4 +10,5 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface WordRepository extends JpaRepository<Word, Long> {
     Optional<Word> findByNextWord(Word nextWord);
+    Optional<Word> findByLocalId(String localId);
 }
