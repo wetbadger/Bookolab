@@ -19,7 +19,7 @@ export const usePageStore = defineStore('pageStore', {
       try {
         const response = await axios.get(`${API_BASE_URL}/pages/${id}`);
         this.records = response.data;
-        this.nextPageFirstWordId = this.records.lastWord.nextWordId;
+        this.nextPageFirstWordId = this.records.lastWord?.nextWordId;
       } catch (err) {
         this.error = err;
         console.error("Failed to fetch page data:", err);

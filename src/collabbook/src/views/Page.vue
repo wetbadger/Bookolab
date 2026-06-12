@@ -1,4 +1,6 @@
 <template>
+  <Paginator class="mt-4" />
+
   <div class="mode-toggle">
     <router-link v-if="!isEditMode" :to="`/pages/${id}/edit`" class="btn">✏️ Edit Page</router-link>
     <router-link v-else :to="`/pages/${id}`" class="btn">👁️ View Page</router-link>
@@ -37,7 +39,7 @@
           :ref="(el) => { if (el) plusRefs[word.viewKey] = el }"
           :previous="typeof word.id === 'number' ? word.id : null"
           :next="typeof displayedWords[index + 1]?.id === 'number' ? displayedWords[index + 1].id : null"
-          :previousLocalId="word.localId" 
+          :previousLocalId="word.localId"
           @submit="(data) => handleWordSubmit(data, index + 1)"
         />
       </span>
@@ -50,6 +52,7 @@ import { onMounted, ref, computed, watch, nextTick, onBeforeUpdate } from 'vue';
 import { usePageStore } from '@/stores/pageStore';
 import Word from '@/components/Word.vue';
 import Plus from '@/components/Plus.vue';
+import Paginator from "@/components/Pagenator.vue";
 
 const props = defineProps({
   id: { type: String, required: true },
@@ -73,17 +76,17 @@ const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 const loadWords = async (streamWordsInRealTime, loadPlusSigns) => {
   const result = [];
-  firstWord.value = pageStore.records?.firstWord || null; 
+  firstWord.value = pageStore.records?.firstWord || null;
   lastWordIdOfPreviousPage.value = pageStore.records?.lastWordIdOfPreviousPage;
   let currentWord = firstWord.value;
 
   while (currentWord) {
     const wordId = currentWord.id ? currentWord.id : lastWordIdOfPreviousPage.value;
 
-    result.push({ 
-      id: Number(wordId), 
-      content: currentWord.content, 
-      nextWordId: currentWord?.nextWord?.id ? Number(currentWord.nextWord.id) : null, 
+    result.push({
+      id: Number(wordId),
+      content: currentWord.content,
+      nextWordId: currentWord?.nextWord?.id ? Number(currentWord.nextWord.id) : null,
       showPlus: false,
       localId: null,                  // FIX: Pure null for verified database items
       viewKey: 'db-' + Number(wordId) // FIX: Dedicated UI lookup string key
@@ -112,8 +115,8 @@ const handleWordSubmit = async (data, originIndex) => {
   const { id, localId, content, previous, next, previousLocalId } = data;
 
   const newWordObj = {
-    id: id ? Number(id) : null, 
-    localId: localId,           
+    id: id ? Number(id) : null,
+    localId: localId,
     content: content,
     nextWordId: next ? Number(next) : null,
     showPlus: true,
@@ -124,7 +127,7 @@ const handleWordSubmit = async (data, originIndex) => {
     displayedWords.value.unshift(newWordObj);
   } else {
     let targetIndex = -1;
-    
+
     if (previousLocalId) {
       targetIndex = displayedWords.value.findIndex(word => word.localId === previousLocalId);
     }
@@ -144,7 +147,7 @@ const handleWordSubmit = async (data, originIndex) => {
   }
 
   await nextTick();
-  
+
   // Target focus by our designated viewKey mapping value
   if (plusRefs.value[newWordObj.viewKey]) {
     plusRefs.value[newWordObj.viewKey].focusInnerInput();
@@ -160,6 +163,11 @@ onMounted(() => { initializePage(); });
 
 watch(() => props.isEditMode, () => {
   loadWords(!props.isEditMode, props.isEditMode);
+});
+
+// 2. WATCH THE ROUTE ID: Triggered when user clicks a pagination number
+watch(() => props.id, () => {
+  initializePage();
 });
 </script>
 
