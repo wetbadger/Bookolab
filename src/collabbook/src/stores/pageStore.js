@@ -38,7 +38,7 @@ export const usePageStore = defineStore('pageStore', {
 
       this.stompClient.activate();
     },
-subscribeToPageTopic(pageId) {
+    subscribeToPageTopic(pageId) {
       if (!this.stompClient || !this.stompClient.connected) return;
 
       if (this.currentSubscription) {
@@ -46,26 +46,52 @@ subscribeToPageTopic(pageId) {
       }
 
       this.currentSubscription = this.stompClient.subscribe(`/topic/page/${pageId}`, (message) => {
-        const remoteWord = JSON.parse(message.body);
-        console.log("🔥 WebSocket message caught:", remoteWord);
+        // Fix: Parse the message body into our inboundPayload variable
+        const inboundPayload = JSON.parse(message.body);
+        console.log("🔥 Incoming WebSocket payload caught:", inboundPayload);
 
-        // Process the new word into the store's records
-        this.insertWordIntoRecords(remoteWord);
+        // Check if the payload is a cross-page boundary patch command
+        if (inboundPayload.type) {
+          this.handleCrossPageBoundaryPatch(inboundPayload);
+        } else {
+          // Otherwise, it's a standard word item for this page!
+          this.insertWordIntoRecords(inboundPayload);
+        }
       });
     },
+    // Processes cross-page linking updates from neighboring tabs
+    handleCrossPageBoundaryPatch(patch) {
+      if (!this.records) return;
 
-    // NEW ACTION: Manipulate the linked list records directly inside Pinia
+      if (patch.type === "NEXT_PAGE_HEAD_CHANGED") {
+        console.log(`📡 Patching out-bound link pointer -> newNextWordId: ${patch.newNextWordId}`);
+        // 1. Update the metadata link tracking pointer
+        this.nextPageFirstWordId = patch.newNextWordId;
+        
+        // 2. Patch the actual active lastWord state instance object link directly
+        if (this.records.lastWord) {
+          this.records.lastWord.nextWordId = patch.newNextWordId;
+        }
+      } 
+      
+      else if (patch.type === "PREVIOUS_PAGE_TAIL_CHANGED") {
+        console.log(`📡 Patching in-bound fallback anchor -> newLastWordIdOfPreviousPage: ${patch.newLastWordIdOfPreviousPage}`);
+        // Update the fallback tracking pointer
+        this.records.lastWordIdOfPreviousPage = patch.newLastWordIdOfPreviousPage;
+      }
+    },
+
+    // Manipulate the linked list records directly inside Pinia
     insertWordIntoRecords(newWord) {
       if (!this.records) return;
 
-      // 1. Conflict Resolution: If we already have this word, skip it 
-      // (Your local Axios call or optimistic UI might have already accounted for it)
+      // 1. Conflict Resolution: Prevent duplicate insertions
       if (this.findWordInRecords(newWord.id || newWord.localId)) {
         console.log(`✅ Word "${newWord.content}" already accounted for in store.`);
         return;
       }
 
-      // 2. Build the correct node structure matching Spring's output
+      // 2. Build the correct node structure matching Spring's entity
       const newNode = {
         id: newWord.id,
         localId: newWord.localId,
@@ -73,43 +99,60 @@ subscribeToPageTopic(pageId) {
         nextWord: null
       };
 
-      // 3. CASE A: Prepend to the beginning of the page
-      // If the new word points to our current first word as its next link, it's the new head
+      // 3. CASE A: List is completely empty
+      if (!this.records.firstWord) {
+        this.records.firstWord = newNode;
+        this.records.lastWord = {
+          id: newNode.id,
+          content: newNode.content,
+          nextWordId: this.nextPageFirstWordId || null,
+          previousWordId: null
+        };
+        return;
+      }
+
+      // 4. CASE B: Prepend to the beginning of the page
       if (this.records.firstWord && newWord.nextWord && this.records.firstWord.id === newWord.nextWord.id) {
         newNode.nextWord = this.records.firstWord;
         this.records.firstWord = newNode;
         return;
       }
 
-      // 4. CASE B: Mid-chain or End-chain Insertion
-      // Traverse the linked list until we find the anchor node that should precede this word
-      let current = this.records.firstWord;
-      let inserted = false;
-
-      while (current) {
-        // Look for the node that matches the database structure anchor
-        // (Either matching the next pointer relationship or checking local matching tracking IDs)
-        const isTargetAnchor = (newWord.nextWord && current.nextWord && current.nextWord.id === newWord.nextWord.id) || 
-                               (!newWord.nextWord && !current.nextWord); // Appended to the very end
-
-        if (isTargetAnchor && !inserted) {
-          const oldNext = current.nextWord;
-          current.nextWord = newNode;
-          newNode.nextWord = oldNext;
-          inserted = true;
-          break;
+      // 5. CASE C: Appended to the very end of THIS page
+      // Triggered if nextWord is completely null OR if it points to the start of the NEXT page
+      const isPointingToNextPage = newWord.nextWord && 
+                                   Number(newWord.nextWord.id) === Number(this.nextPageFirstWordId);
+                                   
+      if (!newWord.nextWord || isPointingToNextPage) {
+        // Find the current tail node on this page by navigating the active memory pointers
+        let tail = this.records.firstWord;
+        while (tail.nextWord) {
+          tail = tail.nextWord;
         }
-        current = current.nextWord;
-      }
 
-      // 5. Update lastWord boundary metadata if it was appended to the end
-      if (!newNode.nextWord) {
+        // Attach our new node to the end of the current page chain link
+        tail.nextWord = newNode;
+
+        // Synchronize the top-level page metadata boundaries safely
         this.records.lastWord = {
           id: newNode.id,
           content: newNode.content,
           nextWordId: this.nextPageFirstWordId || null,
-          previousWordId: current ? current.id : null
+          previousWordId: tail.id
         };
+        return;
+      }
+
+      // 6. CASE D: Mid-chain Splicing (Strictly for items falling between existing words)
+      let current = this.records.firstWord;
+      while (current) {
+        if (current.nextWord && current.nextWord.id === newWord.nextWord.id) {
+          const oldNext = current.nextWord;
+          current.nextWord = newNode;
+          newNode.nextWord = oldNext;
+          break;
+        }
+        current = current.nextWord;
       }
     },
 
