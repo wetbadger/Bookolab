@@ -1,8 +1,11 @@
 // src/stores/pageStore.js
 import { defineStore } from 'pinia';
+import { Client } from '@stomp/stompjs';
 import axios from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+// Convert http/https to ws/wss dynamically for your Codespace environment
+const WS_BASE_URL = API_BASE_URL.replace(/^http/, 'ws') + '/gs-guide-websocket';
 
 export const usePageStore = defineStore('pageStore', {
   state: () => ({
@@ -10,14 +13,49 @@ export const usePageStore = defineStore('pageStore', {
     loading: false,
     uploading: false,
     error: null,
-    nextPageFirstWordId: null
+    nextPageFirstWordId: null,
+    stompClient: null
   }),
   actions: {
+    initializeTestWebSocket() {
+      if (this.stompClient) return; // Prevent double initialization
+
+      this.stompClient = new Client({
+        brokerURL: WS_BASE_URL,
+        reconnectDelay: 5000,
+        debug: function (str) {
+          console.log('STOMP Debug Log: ' + str);
+        },
+      });
+
+      this.stompClient.onConnect = (frame) => {
+        console.log('🎉 Connected to Spring STOMP Broker!');
+        
+        // 3. Immediately subscribe to our test topic
+        this.stompClient.subscribe('/topic/test-greetings', (message) => {
+          console.log('🔥 REAL-TIME BROADCAST RECEIVED FROM SERVER:', message.body);
+          alert(`Real-Time Update: ${message.body}`);
+        });
+      };
+
+      this.stompClient.activate();
+    },
+    sendWordViaWebSocket(content) {
+      if (this.stompClient && this.stompClient.connected) {
+        this.stompClient.publish({
+          destination: '/app/test-word',
+          body: content // Sending the raw string stringified or plain text
+        });
+        console.log(`📡 Sent "${content}" out over WebSocket pipeline.`);
+      } else {
+        console.error("Cannot send message. STOMP client is not connected.");
+      }
+    },
     async fetchPage(id) {
       this.loading = true;
       this.error = null;
       try {
-        const response = await axios.get(`${API_BASE_URL}/pages/${id}`);
+        const response = await axios.get(`${API_BASE_URL}/api/pages/${id}`);
         this.records = response.data;
         this.nextPageFirstWordId = this.records.lastWord?.nextWordId;
       } catch (err) {
@@ -43,7 +81,7 @@ export const usePageStore = defineStore('pageStore', {
 
       try {
         const response = await axios.post(
-          `${API_BASE_URL}/words`,
+          `${API_BASE_URL}/api/words`,
           requestBody,
           config
         );

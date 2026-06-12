@@ -159,7 +159,10 @@ const initializePage = async () => {
   loadWords(!props.isEditMode, props.isEditMode);
 };
 
-onMounted(() => { initializePage(); });
+onMounted(() => {
+  pageStore.initializeTestWebSocket();
+  initializePage();
+});
 
 watch(() => props.isEditMode, () => {
   loadWords(!props.isEditMode, props.isEditMode);

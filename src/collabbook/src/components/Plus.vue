@@ -108,6 +108,8 @@ const submitWord = () => {
   isComponentEditing.value = false;
   localId = null; 
 
+  pageStore.sendWordViaWebSocket(trimmedWord);
+
   // 2. ASYNC IN-FLIGHT DISPATCH: Non-blocking background thread worker
   pageStore.addWord(
     trimmedWord, 

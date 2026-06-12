@@ -66,8 +66,11 @@ public class WordService {
      * Create a word.
      *
      * Inserts a word after the previous word.
-     * If there is no previous word (both id and localId are missing/null), assume we are at the 
+     * If there is no previous word (both previousWordId and previousLocalId are missing/null), assume we are at the 
      * beginning and change the current page's first word to the word we are creating.
+     * 
+     * If just the previousLocalId is available, that means we connect the word to another word that is in-flight
+     * rather than looking at the database. Hopefully this is handled gracefully by Spring Boot's magic.
      *
      * @param newWord A word to be added to the server.
      * @param currentPageId Used to decide if we should change the firstWord or lastWord of the current page.

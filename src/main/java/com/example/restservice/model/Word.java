@@ -13,8 +13,6 @@ public class Word {
     @GeneratedValue
     private Long id;
 
-    private String previousLocalId;
-
     @Column(nullable = false)
     private String localId;
 
