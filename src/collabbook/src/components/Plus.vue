@@ -108,9 +108,18 @@ const submitWord = () => {
   isComponentEditing.value = false;
   localId = null; 
 
-  pageStore.sendWordViaWebSocket(trimmedWord);
+// Look for your pageStore.sendWordViaWebSocket line and change it to pass an object:
+  pageStore.sendWordViaWebSocket({
+    content: trimmedWord,
+    currentPageId: currentPageId,
+    localId: currentLocalId,
+    previousWordId: props.previous,
+    nextWordId: props.next,
+    previousLocalId: props.previousLocalId
+  });
 
   // 2. ASYNC IN-FLIGHT DISPATCH: Non-blocking background thread worker
+  /*
   pageStore.addWord(
     trimmedWord, 
     currentPageId, 
@@ -123,6 +132,7 @@ const submitWord = () => {
   }).catch((error) => {
     console.error("Critical background execution failure:", error);
   });
+  */
 };
 
 onMounted(() => {

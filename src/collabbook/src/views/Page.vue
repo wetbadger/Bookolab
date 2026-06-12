@@ -74,7 +74,7 @@ onBeforeUpdate(() => {
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-const loadWords = async (streamWordsInRealTime, loadPlusSigns) => {
+const loadWords = async (streamWordsInRealTime, loadPlusSigns, isInstant = false) => {
   const result = [];
   firstWord.value = pageStore.records?.firstWord || null;
   lastWordIdOfPreviousPage.value = pageStore.records?.lastWordIdOfPreviousPage;
@@ -87,23 +87,26 @@ const loadWords = async (streamWordsInRealTime, loadPlusSigns) => {
       id: Number(wordId),
       content: currentWord.content,
       nextWordId: currentWord?.nextWord?.id ? Number(currentWord.nextWord.id) : null,
-      showPlus: false,
-      localId: null,                  // FIX: Pure null for verified database items
-      viewKey: 'db-' + Number(wordId) // FIX: Dedicated UI lookup string key
+      showPlus: isInstant, // If instant mode, show the plus signs immediately!
+      localId: currentWord.localId || null, // Keep the tracking ID bound if it exists
+      viewKey: currentWord.localId ? currentWord.localId : 'db-' + Number(wordId) 
     });
 
-    if (streamWordsInRealTime) {
+    // If it's an initial view stream and NOT instant mode, add artificial delay
+    if (streamWordsInRealTime && !isInstant) {
       displayedWords.value = [...result];
       await delay(30);
     }
     currentWord = currentWord.nextWord;
   }
 
-  if (!streamWordsInRealTime) {
+  // If we aren't streaming or we are in instant mode, swap the array whole-cloth
+  if (!streamWordsInRealTime || isInstant) {
     displayedWords.value = result;
   }
 
-  if (loadPlusSigns) {
+  // Only run the staggered plus sign animation if we aren't doing an instant layout update
+  if (loadPlusSigns && !isInstant) {
     for (const word of displayedWords.value) {
       await delay(40);
       word.showPlus = true;
@@ -159,10 +162,29 @@ const initializePage = async () => {
   loadWords(!props.isEditMode, props.isEditMode);
 };
 
-onMounted(() => {
-  pageStore.initializeTestWebSocket();
-  initializePage();
+onMounted(() => { 
+  pageStore.initializeTestWebSocket(); 
+  initializePage(); 
 });
+
+// Your deep watcher handles all the heavy lifting!
+// Anytime pageStore.records changes (via WebSocket state manipulation),
+// it sweeps through and instantly updates displayedWords without staggering animations.
+watch(
+  () => pageStore.records,
+  (newRecords) => {
+    if (newRecords) {
+      console.log("🔄 Store records mutation detected. Updating display array instantly...");
+      
+      // Arguments: 
+      // 1. streamWords = false
+      // 2. loadPlusSigns = false (handled by instant flag)
+      // 3. isInstant = true ⚡
+      loadWords(false, false, true);
+    }
+  },
+  { deep: true }
+);
 
 watch(() => props.isEditMode, () => {
   loadWords(!props.isEditMode, props.isEditMode);

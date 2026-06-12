@@ -14,43 +14,127 @@ export const usePageStore = defineStore('pageStore', {
     uploading: false,
     error: null,
     nextPageFirstWordId: null,
-    stompClient: null
+    stompClient: null,
+    currentWebSocketSubscription: null,
+    onRemoteWordAddedCallback: null
   }),
   actions: {
     initializeTestWebSocket() {
-      if (this.stompClient) return; // Prevent double initialization
+      if (this.stompClient) return;
 
       this.stompClient = new Client({
         brokerURL: WS_BASE_URL,
         reconnectDelay: 5000,
-        debug: function (str) {
-          console.log('STOMP Debug Log: ' + str);
-        },
+        debug: function (str) { console.log('STOMP: ' + str); },
       });
 
       this.stompClient.onConnect = (frame) => {
         console.log('🎉 Connected to Spring STOMP Broker!');
-        
-        // 3. Immediately subscribe to our test topic
-        this.stompClient.subscribe('/topic/test-greetings', (message) => {
-          console.log('🔥 REAL-TIME BROADCAST RECEIVED FROM SERVER:', message.body);
-          alert(`Real-Time Update: ${message.body}`);
-        });
+        // If we already loaded a page before the socket connected, subscribe to it immediately
+        if (this.records?.id) {
+          this.subscribeToPageTopic(this.records.id);
+        }
       };
 
       this.stompClient.activate();
     },
-    sendWordViaWebSocket(content) {
+subscribeToPageTopic(pageId) {
+      if (!this.stompClient || !this.stompClient.connected) return;
+
+      if (this.currentSubscription) {
+        this.currentSubscription.unsubscribe();
+      }
+
+      this.currentSubscription = this.stompClient.subscribe(`/topic/page/${pageId}`, (message) => {
+        const remoteWord = JSON.parse(message.body);
+        console.log("🔥 WebSocket message caught:", remoteWord);
+
+        // Process the new word into the store's records
+        this.insertWordIntoRecords(remoteWord);
+      });
+    },
+
+    // NEW ACTION: Manipulate the linked list records directly inside Pinia
+    insertWordIntoRecords(newWord) {
+      if (!this.records) return;
+
+      // 1. Conflict Resolution: If we already have this word, skip it 
+      // (Your local Axios call or optimistic UI might have already accounted for it)
+      if (this.findWordInRecords(newWord.id || newWord.localId)) {
+        console.log(`✅ Word "${newWord.content}" already accounted for in store.`);
+        return;
+      }
+
+      // 2. Build the correct node structure matching Spring's output
+      const newNode = {
+        id: newWord.id,
+        localId: newWord.localId,
+        content: newWord.content,
+        nextWord: null
+      };
+
+      // 3. CASE A: Prepend to the beginning of the page
+      // If the new word points to our current first word as its next link, it's the new head
+      if (this.records.firstWord && newWord.nextWord && this.records.firstWord.id === newWord.nextWord.id) {
+        newNode.nextWord = this.records.firstWord;
+        this.records.firstWord = newNode;
+        return;
+      }
+
+      // 4. CASE B: Mid-chain or End-chain Insertion
+      // Traverse the linked list until we find the anchor node that should precede this word
+      let current = this.records.firstWord;
+      let inserted = false;
+
+      while (current) {
+        // Look for the node that matches the database structure anchor
+        // (Either matching the next pointer relationship or checking local matching tracking IDs)
+        const isTargetAnchor = (newWord.nextWord && current.nextWord && current.nextWord.id === newWord.nextWord.id) || 
+                               (!newWord.nextWord && !current.nextWord); // Appended to the very end
+
+        if (isTargetAnchor && !inserted) {
+          const oldNext = current.nextWord;
+          current.nextWord = newNode;
+          newNode.nextWord = oldNext;
+          inserted = true;
+          break;
+        }
+        current = current.nextWord;
+      }
+
+      // 5. Update lastWord boundary metadata if it was appended to the end
+      if (!newNode.nextWord) {
+        this.records.lastWord = {
+          id: newNode.id,
+          content: newNode.content,
+          nextWordId: this.nextPageFirstWordId || null,
+          previousWordId: current ? current.id : null
+        };
+      }
+    },
+
+    // Helper to scan our current memory tree for duplicates
+    findWordInRecords(identifier) {
+      let current = this.records?.firstWord;
+      while (current) {
+        if (current.id === identifier || current.localId === identifier) return current;
+        current = current.nextWord;
+      }
+      return null;
+    },
+    // Sends a structured JSON payload
+    sendWordViaWebSocket(payload) {
       if (this.stompClient && this.stompClient.connected) {
         this.stompClient.publish({
           destination: '/app/test-word',
-          body: content // Sending the raw string stringified or plain text
+          body: JSON.stringify(payload) // Map becomes standard JSON string
         });
-        console.log(`📡 Sent "${content}" out over WebSocket pipeline.`);
+        console.log("📡 Dispatched object to backend:", payload);
       } else {
-        console.error("Cannot send message. STOMP client is not connected.");
+        console.error("STOMP Client disconnected. Cannot send payload.");
       }
     },
+
     async fetchPage(id) {
       this.loading = true;
       this.error = null;
@@ -58,6 +142,10 @@ export const usePageStore = defineStore('pageStore', {
         const response = await axios.get(`${API_BASE_URL}/api/pages/${id}`);
         this.records = response.data;
         this.nextPageFirstWordId = this.records.lastWord?.nextWordId;
+
+        // Every time you navigate to or load a fresh page, switch the WebSocket room!
+        this.subscribeToPageTopic(id);
+
       } catch (err) {
         this.error = err;
         console.error("Failed to fetch page data:", err);
