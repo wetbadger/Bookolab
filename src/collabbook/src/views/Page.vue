@@ -2,8 +2,14 @@
   <Paginator class="mt-4" />
 
   <div class="mode-toggle">
-    <router-link v-if="!isEditMode" :to="`/pages/${id}/edit`" class="btn">✏️ Edit Page</router-link>
-    <router-link v-else :to="`/pages/${id}`" class="btn">👁️ View Page</router-link>
+    <!-- Use a click handler instead of a direct router-link path -->
+    <button v-if="!isEditMode" @click="handleEditClick" class="btn">
+      ✏️ Edit Page
+    </button>
+
+    <router-link v-else :to="`/pages/${id}`" class="btn">
+      👁️ View Page
+    </router-link>
   </div>
 
   <div v-show="isDebugMode">
@@ -19,7 +25,7 @@
   </div>
 
   <div v-else class="sentence-container">
-    <span v-if="isEditMode" class="plus-sign">
+    <span v-if="isReallyEditing" class="plus-sign">
       <Plus
         :ref="(el) => { if (el) plusRefs['start'] = el }"
         :previous="lastWordIdOfPreviousPage ? Number(lastWordIdOfPreviousPage) : null"
@@ -34,7 +40,7 @@
         <Word :data="word" />
       </span>
 
-      <span v-if="isEditMode && word.showPlus" class="plus-sign">
+      <span v-if="isReallyEditing && word.showPlus" class="plus-sign">
         <Plus
           :ref="(el) => { if (el) plusRefs[word.viewKey] = el }"
           :previous="typeof word.id === 'number' ? word.id : null"
@@ -49,7 +55,10 @@
 
 <script setup>
 import { onMounted, ref, computed, watch, nextTick, onBeforeUpdate } from 'vue';
+import { useRouter } from 'vue-router'; // Add this import
+
 import { usePageStore } from '@/stores/pageStore';
+import { useAuthStore } from '@/stores/authStore'; // Import the new store
 import Word from '@/components/Word.vue';
 import Plus from '@/components/Plus.vue';
 import Paginator from "@/components/Pagenator.vue";
@@ -61,10 +70,12 @@ const props = defineProps({
 });
 
 const pageStore = usePageStore();
+const authStore = useAuthStore();
 const dbError = computed(() => pageStore.error);
 const displayedWords = ref([]);
 const firstWord = ref(null);
 const lastWordIdOfPreviousPage = ref(null);
+const router = useRouter(); // Initialize router
 
 const plusRefs = ref({});
 
@@ -73,6 +84,21 @@ onBeforeUpdate(() => {
 });
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Use the store's reactive validation state
+const isAuthenticated = computed(() => authStore.isAuthenticated);
+const isReallyEditing = computed(() => props.isEditMode && isAuthenticated.value);
+
+const handleEditClick = () => {
+  if (isAuthenticated.value) {
+    router.push(`/pages/${props.id}/edit`);
+  } else {
+    router.push({
+      path: '/login',
+      query: { redirectFrom: `/pages/${props.id}/edit` }
+    });
+  }
+};
 
 const loadWords = async (streamWordsInRealTime, loadPlusSigns, isInstant = false) => {
   const result = [];
@@ -89,7 +115,7 @@ const loadWords = async (streamWordsInRealTime, loadPlusSigns, isInstant = false
       nextWordId: currentWord?.nextWord?.id ? Number(currentWord.nextWord.id) : null,
       showPlus: isInstant, // If instant mode, show the plus signs immediately!
       localId: currentWord.localId || null, // Keep the tracking ID bound if it exists
-      viewKey: currentWord.localId ? currentWord.localId : 'db-' + Number(wordId) 
+      viewKey: currentWord.localId ? currentWord.localId : 'db-' + Number(wordId)
     });
 
     // If it's an initial view stream and NOT instant mode, add artificial delay
@@ -162,9 +188,9 @@ const initializePage = async () => {
   loadWords(!props.isEditMode, props.isEditMode);
 };
 
-onMounted(() => { 
-  pageStore.initializeTestWebSocket(); 
-  initializePage(); 
+onMounted(() => {
+  pageStore.initializeTestWebSocket();
+  initializePage();
 });
 
 // Your deep watcher handles all the heavy lifting!
@@ -175,8 +201,8 @@ watch(
   (newRecords) => {
     if (newRecords) {
       console.log("🔄 Store records mutation detected. Updating display array instantly...");
-      
-      // Arguments: 
+
+      // Arguments:
       // 1. streamWords = false
       // 2. loadPlusSigns = false (handled by instant flag)
       // 3. isInstant = true ⚡

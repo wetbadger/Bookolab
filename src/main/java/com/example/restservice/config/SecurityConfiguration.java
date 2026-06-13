@@ -1,5 +1,6 @@
 package com.example.restservice.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationProvider;
@@ -17,6 +18,9 @@ import java.util.List;
 @Configuration
 @EnableWebSecurity
 public class SecurityConfiguration {
+    @Value("${app.cors.allowed-origin}")
+    private String allowedOrigin;
+
     private final AuthenticationProvider authenticationProvider;
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
@@ -32,9 +36,18 @@ public class SecurityConfiguration {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/auth/**").permitAll()
+
+                        // 1. SPECIFIC FIRST: Explicitly require auth for the edit sub-path
+                        .requestMatchers("/api/pages/*/edit").authenticated()
+
+                        // 2. GENERAL SECOND: Allow public GET viewing for standard pages
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/pages/*").permitAll()
+
+                        // 3. FALLBACK: Everything else stays completely locked down
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session
@@ -46,13 +59,23 @@ public class SecurityConfiguration {
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("https://backend.com", "http:localhost:8080"));
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE"));
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        CorsConfiguration allowPagesConfig = new CorsConfiguration();
+        allowPagesConfig.setAllowedOrigins(List.of(allowedOrigin)); // Uses the injected variable
+        allowPagesConfig.setAllowedMethods(List.of("GET", "POST"));
+        allowPagesConfig.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        allowPagesConfig.setAllowCredentials(true);
+
+        CorsConfiguration denyEditConfig = new CorsConfiguration();
+        denyEditConfig.setAllowedOrigins(List.of()); // Empty list denies CORS
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
+
+        // Matches /api/pages/1 but NOT /api/pages/1/edit
+        source.registerCorsConfiguration("/api/pages/*", allowPagesConfig);
+
+        // Explicitly blocks /api/pages/1/edit
+        source.registerCorsConfiguration("/api/pages/*/edit", denyEditConfig);
+
         return source;
     }
 }

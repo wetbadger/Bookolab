@@ -20,13 +20,29 @@ const routes = [
     name: 'page-edit',
     component: Page,
     // Passes the URL id as a prop, and sets edit mode to true
-    props: route => ({ id: route.params.id, isEditMode: true, isDebugMode: isDebugMode })
+    props: route => ({ id: route.params.id, isEditMode: true, isDebugMode: isDebugMode }),
+    meta: { requiresAuth: true }
   }
 ];
 
 const router = createRouter({
   history: createWebHistory(),
   routes
+});
+router.beforeEach((to, from) => {
+  // Replace this with your actual auth checking logic (e.g., checking Pinia/Vuex or localStorage)
+  const isAuthenticated = !!localStorage.getItem('token');
+
+  if (to.meta.requiresAuth && !isAuthenticated) {
+    // Instead of calling next({...}), you return the route object directly to redirect
+    return {
+      name: 'page-view',
+      params: { id: to.params.id || '1' }
+    };
+  }
+
+  // Explicitly returning nothing (or true) allows the navigation to proceed normally
+  return true;
 });
 
 export default router;
