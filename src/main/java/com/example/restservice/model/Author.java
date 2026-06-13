@@ -25,8 +25,8 @@ public class Author implements UserDetails {
     private String password;
 
     private boolean enabled;
-    private String verificationCode;
-    private LocalDateTime verificationCodeExpired;
+    // private String verificationCode;
+    // private LocalDateTime verificationCodeExpiresAt;
 
     public Author(String username, String password) {
         this.username = username;
@@ -74,5 +74,13 @@ public class Author implements UserDetails {
     @Override
     public boolean isEnabled() {
         return UserDetails.super.isEnabled();
+    }
+
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
+    }
+
+    public boolean getEnabled(boolean enabled) {
+        return enabled;
     }
 }
