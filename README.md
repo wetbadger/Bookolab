@@ -17,7 +17,7 @@ A real-time, multi-user collaborative writing engine where an infinite book is c
 ### 1. Data Structure: Word-Level Linked Splicing
 Unlike a traditional document database that stores strings, markdown blocks, or array lists, every single word in this book is an independent record in a self-referential graph. 
 * Words contain content restricted up to **30 characters**.
-* Each word maintains absolute `nextWord` and `previousWord` self-referential database constraints.
+* Each word maintains absolute `nextWord` self-referential database constraint.
 * **Optimistic UI Splicing:** When a user inserts a word mid-sentence, the Vue layout uses a transient tracking identifier (`localId`) to splice the item into view instantly for zero latency. Concurrently, a message is routed down the WebSocket pipeline to let the transactional database handle atomic list-pointer re-routing.
 
 ### 2. The 10-Minute Consolidation Loop (Page Horizons)
@@ -47,7 +47,7 @@ We configured a low-latency bidirectional pipeline that bypasses standard REST o
 ## 🗄 Database Model Blueprint
 
 ### Word Schema
-```text
+```Plaintext
 Table "public.word"
      Column      |         Type          | Modifiers
 -----------------+-----------------------+-----------
@@ -88,7 +88,7 @@ User Action: User clicks a + boundary split slot, types a word, and hits enter.
 
 1. Optimistic Projection: Plus.vue generates a tracking localId, emits the text, and the reactive template renders the word instantly.
 
-2. Socket Dispatch: The payload travels via STOMP down /app/test-word, sending the whole layout parameter set: content, currentPageId, localId, previousWordId, nextWordId, and previousLocalId.
+2. Socket Dispatch: The payload travels via STOMP down /app/send-word, sending the whole layout parameter set: content, currentPageId, localId, previousWordId, nextWordId, and previousLocalId.
 
 3. Backend Processing: WordWebSocketController unpacks the parameters, executes wordService.createWord(), commits the transactional row to PostgreSQL, and broadcasts the permanent, database-verified Word entity out to the active channel.
 

@@ -22,7 +22,7 @@ public class WordWebSocketController {
     @Autowired
     private PageRepository pageRepository; // Needed to look up neighbor page configurations
 
-    @MessageMapping("/test-word")
+    @MessageMapping("/send-word")
     public void handleNewWordBroadcast(Map<String, Object> payload) throws InterruptedException {
         String content = (String) payload.get("content");
         String localId = (String) payload.get("localId");

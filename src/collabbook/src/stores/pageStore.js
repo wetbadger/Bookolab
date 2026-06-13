@@ -16,7 +16,8 @@ export const usePageStore = defineStore('pageStore', {
     nextPageFirstWordId: null,
     stompClient: null,
     currentWebSocketSubscription: null,
-    onRemoteWordAddedCallback: null
+    onRemoteWordAddedCallback: null,
+    globalCounter: 0 // TODO: use for id generation
   }),
   actions: {
     initializeTestWebSocket() {
@@ -67,13 +68,13 @@ export const usePageStore = defineStore('pageStore', {
         console.log(`📡 Patching out-bound link pointer -> newNextWordId: ${patch.newNextWordId}`);
         // 1. Update the metadata link tracking pointer
         this.nextPageFirstWordId = patch.newNextWordId;
-        
+
         // 2. Patch the actual active lastWord state instance object link directly
         if (this.records.lastWord) {
           this.records.lastWord.nextWordId = patch.newNextWordId;
         }
-      } 
-      
+      }
+
       else if (patch.type === "PREVIOUS_PAGE_TAIL_CHANGED") {
         console.log(`📡 Patching in-bound fallback anchor -> newLastWordIdOfPreviousPage: ${patch.newLastWordIdOfPreviousPage}`);
         // Update the fallback tracking pointer
@@ -120,9 +121,9 @@ export const usePageStore = defineStore('pageStore', {
 
       // 5. CASE C: Appended to the very end of THIS page
       // Triggered if nextWord is completely null OR if it points to the start of the NEXT page
-      const isPointingToNextPage = newWord.nextWord && 
+      const isPointingToNextPage = newWord.nextWord &&
                                    Number(newWord.nextWord.id) === Number(this.nextPageFirstWordId);
-                                   
+
       if (!newWord.nextWord || isPointingToNextPage) {
         // Find the current tail node on this page by navigating the active memory pointers
         let tail = this.records.firstWord;
@@ -169,7 +170,7 @@ export const usePageStore = defineStore('pageStore', {
     sendWordViaWebSocket(payload) {
       if (this.stompClient && this.stompClient.connected) {
         this.stompClient.publish({
-          destination: '/app/test-word',
+          destination: '/app/send-word',
           body: JSON.stringify(payload) // Map becomes standard JSON string
         });
         console.log("📡 Dispatched object to backend:", payload);
@@ -253,8 +254,7 @@ export const usePageStore = defineStore('pageStore', {
         this.uploading = false;
       }
     },
-
-// Helper: Convert linked list to array
+    // Helper: Convert linked list to array
     linkedListToArray() {
       const result = [];
       let current = this.records.firstWord;
@@ -264,9 +264,7 @@ export const usePageStore = defineStore('pageStore', {
       }
       return result;
     },
-
-// Helper: Rebuild linked list from array
-// Helper: Rebuild linked list from array
+    // Helper: Rebuild linked list from array
     rebuildLinkedList(words) {
       if (words.length === 0) {
         this.records.firstWord = null;
@@ -306,6 +304,7 @@ export const usePageStore = defineStore('pageStore', {
       };
     },
     // A fast, non-crypto UUIDv4 look-alike generator for HTTP
+    // TODO: make collisions less likely somehow
     generateSimpleId() {
       return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
         const r = Math.random() * 16 | 0;
