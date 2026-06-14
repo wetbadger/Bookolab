@@ -84,6 +84,11 @@
 	</dependencies>
 
 	<build>
+		<resources>
+			<resource>
+				<directory>src/main/resources</directory>
+				<filtering>true</filtering> </resource>
+		</resources>
 		<plugins>
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
@@ -103,7 +108,7 @@
 							<files>
 								<file>${project.basedir}/.env</file>
 							</files>
-							<quiet>true</quiet>
+							<quiet>false</quiet>
 						</configuration>
 					</execution>
 				</executions>

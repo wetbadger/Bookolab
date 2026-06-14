@@ -23,15 +23,21 @@ export const usePageStore = defineStore('pageStore', {
     initializeTestWebSocket() {
       if (this.stompClient) return;
 
+      // Assuming your JWT is saved in localStorage or another store
+      const token = localStorage.getItem('token');
+
       this.stompClient = new Client({
         brokerURL: WS_BASE_URL,
         reconnectDelay: 5000,
+        // Add the JWT token to the connection headers
+        connectHeaders: {
+          Authorization: token ? `Bearer ${token}` : ''
+        },
         debug: function (str) { console.log('STOMP: ' + str); },
       });
 
       this.stompClient.onConnect = (frame) => {
         console.log('🎉 Connected to Spring STOMP Broker!');
-        // If we already loaded a page before the socket connected, subscribe to it immediately
         if (this.records?.id) {
           this.subscribeToPageTopic(this.records.id);
         }

@@ -39,6 +39,7 @@ public class SecurityConfiguration {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(authorize -> authorize
+                        .requestMatchers("/gs-guide-websocket/**").permitAll()
                         .requestMatchers("/auth/**").permitAll()
 
                         // 1. SPECIFIC FIRST: Explicitly require auth for the edit sub-path

@@ -18,6 +18,8 @@ public class Author implements UserDetails {
     @GeneratedValue
     private Long id;
 
+    private LocalDateTime bannedUntil;
+
     @Column(unique = true, nullable = false, length = 30)
     private String username;
 
@@ -31,10 +33,11 @@ public class Author implements UserDetails {
     public Author(String username, String password) {
         this.username = username;
         this.password = password;
+        this.enabled = true;
     }
 
     public Author() {
-
+        this.enabled = true;
     }
 
     public Long getId() {
@@ -73,14 +76,17 @@ public class Author implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return UserDetails.super.isEnabled();
+        if (bannedUntil != null && bannedUntil.isAfter(LocalDateTime.now())) {
+            return false; // They are temporarily banned
+        }
+        return this.enabled; // Fall back to their permanent ban status
     }
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
     }
 
-    public boolean getEnabled(boolean enabled) {
-        return enabled;
-    }
+    // Add standard getters/setters for it at the bottom:
+    public LocalDateTime getBannedUntil() { return bannedUntil; }
+    public void setBannedUntil(LocalDateTime bannedUntil) { this.bannedUntil = bannedUntil; }
 }

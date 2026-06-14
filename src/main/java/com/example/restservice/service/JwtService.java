@@ -17,8 +17,10 @@ import java.util.function.Function;
 
 @Service
 public class JwtService {
-    @Value("${security.jwt.secret-key}")
-    private String secretKey;
+    //    @Value("${security.jwt.secret-key}")
+    //    private String secretKey;
+    private static final String PRIVATE_KEY_PATH = "src/main/resources/private.key";
+    private static final String PUBLIC_KEY_PATH = "src/main/resources/public.key";
     @Value("${security.jwt.expiration-time}")
     private Long jwtExpiration;
 
@@ -53,7 +55,7 @@ public class JwtService {
                 .setSubject(userDetails.getUsername())
                 .setIssuedAt(new Date(System.currentTimeMillis()))
                 .setExpiration(new Date(System.currentTimeMillis() + expiration))
-                .signWith(getSignInKey(), SignatureAlgorithm.ES256)
+                .signWith(getPrivateKey(), SignatureAlgorithm.ES256)
                 .compact();
     }
 
@@ -73,14 +75,39 @@ public class JwtService {
     private Claims extractAllClaims(String token) {
         return Jwts
                 .parserBuilder()
-                .setSigningKey(getSignInKey())
+                .setSigningKey(getPublicKey())
                 .build()
                 .parseClaimsJws(token)
                 .getBody();
     }
 
-    private Key getSignInKey() {
-        byte[] keyBytes = Decoders.BASE64.decode(secretKey);
-        return Keys.hmacShaKeyFor(keyBytes);
+    private java.security.PrivateKey getPrivateKey() {
+        try {
+            String key = new java.lang.String(java.nio.file.Files.readAllBytes(java.nio.file.Paths.get(PRIVATE_KEY_PATH)))
+                    .replace("-----BEGIN PRIVATE KEY-----", "")
+                    .replace("-----END PRIVATE KEY-----", "")
+                    .replaceAll("\\s+", "");
+            byte[] decode = java.util.Base64.getDecoder().decode(key);
+            java.security.spec.PKCS8EncodedKeySpec keySpec = new java.security.spec.PKCS8EncodedKeySpec(decode);
+            java.security.KeyFactory keyFactory = java.security.KeyFactory.getInstance("EC");
+            return keyFactory.generatePrivate(keySpec);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to load EC private key", e);
+        }
+    }
+
+    private java.security.PublicKey getPublicKey() {
+        try {
+            String key = new java.lang.String(java.nio.file.Files.readAllBytes(java.nio.file.Paths.get(PUBLIC_KEY_PATH)))
+                    .replace("-----BEGIN PUBLIC KEY-----", "")
+                    .replace("-----END PUBLIC KEY-----", "")
+                    .replaceAll("\\s+", "");
+            byte[] decode = java.util.Base64.getDecoder().decode(key);
+            java.security.spec.X509EncodedKeySpec keySpec = new java.security.spec.X509EncodedKeySpec(decode);
+            java.security.KeyFactory keyFactory = java.security.KeyFactory.getInstance("EC");
+            return keyFactory.generatePublic(keySpec);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to load EC public key", e);
+        }
     }
 }
