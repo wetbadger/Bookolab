@@ -26,7 +26,7 @@ public class AuthorController {
         return ResponseEntity.ok(currentAuthor);
     }
 
-    @GetMapping("/all")
+    @GetMapping("/")
     public ResponseEntity<List<Author>> allAuthors() {
         List<Author> authors = authorService.allAuthors();
         return ResponseEntity.ok(authors);

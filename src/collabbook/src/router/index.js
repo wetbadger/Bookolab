@@ -1,5 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import Page from '@/views/Page.vue';
+import Login from '@/views/Login.vue';
+import Signup from '@/views/Signup.vue';
 
 const isDebugMode = false;
 
@@ -22,6 +24,16 @@ const routes = [
     // Passes the URL id as a prop, and sets edit mode to true
     props: route => ({ id: route.params.id, isEditMode: true, isDebugMode: isDebugMode }),
     meta: { requiresAuth: true }
+  },
+  {
+    path: '/login',
+    name: 'login',
+    component: Login
+  },
+  {
+    path: '/signup',
+    name: 'signup',
+    component: Signup
   }
 ];
 

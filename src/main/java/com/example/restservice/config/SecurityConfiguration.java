@@ -60,21 +60,23 @@ public class SecurityConfiguration {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration allowPagesConfig = new CorsConfiguration();
-        allowPagesConfig.setAllowedOrigins(List.of(allowedOrigin)); // Uses the injected variable
-        allowPagesConfig.setAllowedMethods(List.of("GET", "POST"));
+        allowPagesConfig.setAllowedOrigins(List.of(allowedOrigin)); // e.g., http://localhost:5173
+        allowPagesConfig.setAllowedMethods(List.of("GET", "POST", "OPTIONS")); // Added OPTIONS just in case of preflight checks
         allowPagesConfig.setAllowedHeaders(List.of("Authorization", "Content-Type"));
         allowPagesConfig.setAllowCredentials(true);
 
         CorsConfiguration denyEditConfig = new CorsConfiguration();
-        denyEditConfig.setAllowedOrigins(List.of()); // Empty list denies CORS
+        denyEditConfig.setAllowedOrigins(List.of());
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
 
-        // Matches /api/pages/1 but NOT /api/pages/1/edit
+        // 1. Apply your standard CORS rules to the API pages
         source.registerCorsConfiguration("/api/pages/*", allowPagesConfig);
-
-        // Explicitly blocks /api/pages/1/edit
         source.registerCorsConfiguration("/api/pages/*/edit", denyEditConfig);
+
+        // Highlight-start: 2. Apply your allowed origins to your auth endpoints!
+        source.registerCorsConfiguration("/auth/**", allowPagesConfig);
+        // Highlight-end
 
         return source;
     }
