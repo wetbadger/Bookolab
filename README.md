@@ -44,6 +44,36 @@ We configured a low-latency bidirectional pipeline that bypasses standard REST o
 
 ---
 
+## 🔒 Authentication & Security Archetype
+
+The system relies on a decoupled, stateless **JWT Architecture** matched with top-down path authorization rules to protect write operations while preserving open readability across public channels.
+
+### 1. Unified Backend Security Filter Chain
+Spring Security handles validation inside a custom stateless execution chain. The system explicitly isolates browser preflight mechanisms from functional endpoints to enforce authorization without breaking decoupled environments:
+
+* **Preflight Protection Fallback:** To facilitate cross-origin browser validation, the `CorsConfigurationSource` deploys a universal fallback mapping (`/**`) configured with credential capabilities (`setAllowCredentials(true)`).
+* **Asynchronous JWT Extraction:** A custom `JwtAuthenticationFilter` intercepts HTTP traffic right before the standard `UsernamePasswordAuthenticationFilter`. The filter explicitly bypasses HTTP `OPTIONS` methods via lookahead short-circuiting to let the native CORS layer safely append `Access-Control-Allow-Origin` headers. For standard methods, it extracts the `Bearer` token string, validates the expiration against `JwtService`, and populates the `SecurityContextHolder` with `ROLE_USER` permissions.
+* **Granular Rule Ordering:** Access rules are applied sequentially in a top-down priority hierarchy:
+  1. `/auth/**` and `/gs-guide-websocket/**` are completely open (`permitAll()`).
+  2. Sub-paths requiring write access (e.g., `/api/pages/*/edit`, `/authors/me`) are strictly bounded to `.authenticated()`.
+  3. Structural data indexing (`GET /api/pages/*`) is publicly whitelisted to permit read-only navigation.
+  4. Any residual fallback request is locked down by default via `.anyRequest().authenticated()`.
+
+### 2. Client-Side Navigation Guards & Parameter Persistence
+The Vue Router utilizes modern return-based architecture to shield authenticated routes (like `/me` and `/pages/:id/edit`) from unauthenticated traffic while retaining contextual state history:
+
+* **State Initialization Synchronization:** The global `beforeEach` navigation guard intercepts protected targets (`requiresAuth`). If the local store is unverified but retains a raw storage token, it calls `authStore.fetchCurrentUser()` to resolve backend identity state asynchronously before evaluating access.
+* **Interception Query Forwarding:** If authentication fails, the guard returns a redirection payload holding a reactive dynamic query context: `{ path: '/login', query: { redirectFrom: to.fullPath } }`.
+* **Link Propagation:** The application wraps all toggle buttons and cross-auth references inside bounded paths (`:to="{ path: '/signup', query: route.query }"`) ensuring the destination fallback is passed between auth views seamlessly if a user hops back and forth between screens.
+
+### 3. Race-Condition Proof WebSocket Handshaking
+Because asynchronous routing triggers faster than storage persistence cycles can settle, mounting page views instantly can drop the WebSocket authorization layer during page redirects.
+The application solves this by wrapping socket generation inside an atomic reactive safety watcher:
+* Upon mounting, `initializeSocketSafely()` checks the store for active token state.
+* If a token is absent due to an ongoing redirect write cycle, it deploys a transient micro-watcher to stall initialization. The split-second `authStore.token` registers the committed backend signature, the watcher fires the connection, hooks the header configuration, and instantly self-destructs to prevent leak vulnerabilities.
+
+---
+
 ## 🗄 Database Model Blueprint
 
 ### Word Schema
@@ -94,7 +124,10 @@ User Action: User clicks a + boundary split slot, types a word, and hits enter.
 
 4. State Sync: Neighboring clients catch the entity, pass it through pageStore.insertWordIntoRecords(), modify the local Pinia memory linked-list tree, and a Vue deep watcher triggers a clean, instant UI re-render with zero slow-load animation flickers.
 
-## Setup Steps
+
+---
+
+## 🚀 Setup Steps
 
 1. Make sure a postgres service is running.
 
