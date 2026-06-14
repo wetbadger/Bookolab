@@ -5,6 +5,7 @@ import com.example.restservice.model.Author;
 import com.example.restservice.repository.AuthorRepository;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -34,7 +35,7 @@ public class AuthenticationService {
 
     public Author authenticate(RegisterOrLoginAuthorDto input) {
         Author author = authorRepository.findAuthorByUsername(input.getUsername())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
         if (!author.isEnabled()) {
             throw new RuntimeException("Account not enabled");

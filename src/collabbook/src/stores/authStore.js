@@ -6,6 +6,7 @@ import api from '@/api/axios'; // Import your global axios instance
 
 export const useAuthStore = defineStore('auth', () => {
   const token = ref(localStorage.getItem('token'));
+  const user = ref(null); // 👈 Added state to hold the backend Author model
   const error = ref(null);
 
   const isAuthenticated = computed(() => {
@@ -21,9 +22,7 @@ export const useAuthStore = defineStore('auth', () => {
   async function login(credentials) {
     error.value = null;
     try {
-      // Hits your Spring Boot @PostMapping("/login")
       const response = await api.post('/auth/login', credentials);
-      // Your backend returns LoginResponse with { token, expiresIn }
       setToken(response.data.token);
       return true;
     } catch (err) {
@@ -35,12 +34,27 @@ export const useAuthStore = defineStore('auth', () => {
   async function signup(userDetails) {
     error.value = null;
     try {
-      // Hits your Spring Boot @PostMapping("/signup")
       await api.post('/auth/signup', userDetails);
       return true;
     } catch (err) {
       error.value = err.response?.data?.message || 'Signup failed. Username may be taken.';
       return false;
+    }
+  }
+
+  // Fetch the /authors/me endpoint using our configured api instance
+  async function fetchCurrentUser() {
+    if (!isAuthenticated.value) return null;
+    try {
+      // Your api instance handles the interceptor / headers automatically!
+      const response = await api.get('/authors/me');
+      user.value = response.data;
+      return user.value;
+    } catch (err) {
+      error.value = err.response?.data?.message || 'Failed to fetch user profile.';
+      // If the token expired or is malformed, clean up
+      logout();
+      return null;
     }
   }
 
@@ -51,8 +65,10 @@ export const useAuthStore = defineStore('auth', () => {
 
   function logout() {
     token.value = null;
+    user.value = null; // 👈 Clean up user data on logout
     localStorage.removeItem('token');
   }
 
-  return { token, error, isAuthenticated, login, signup, logout };
+  // Expose user and fetchCurrentUser to components
+  return { token, user, error, isAuthenticated, login, signup, fetchCurrentUser, logout };
 });

@@ -35,7 +35,8 @@
     </form>
 
     <p class="auth-switch">
-      Don't have an account? <router-link to="/signup">Sign up here</router-link>
+      Don't have an account?
+      <router-link :to="{ path: '/signup', query: route.query }">Sign up here</router-link>
     </p>
   </div>
 </template>

@@ -35,7 +35,8 @@
     </form>
 
     <p class="auth-switch">
-      Already have an account? <router-link to="/login">Login here</router-link>
+      Already have an account?
+      <router-link :to="{ path: '/login', query: route.query }">Login here</router-link>
     </p>
   </div>
 </template>
@@ -43,10 +44,12 @@
 <script setup>
 import { ref, reactive } from 'vue';
 import { useAuthStore } from '@/stores/authStore';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router'; // 1. Added useRoute here
 
 const authStore = useAuthStore();
 const router = useRouter();
+const route = useRoute(); // 2. Initialized route hook
+
 const loading = ref(false);
 
 const form = reactive({
@@ -60,12 +63,15 @@ const handleSignup = async () => {
   loading.value = false;
 
   if (success) {
-    // Automatically attempt log in or push them to login page with a success signal
+    // Automatically attempt log in
     const loginSuccess = await authStore.login({ ...form });
     if (loginSuccess) {
-      router.push('/');
+      // 3. Implemented the redirect functionality exactly like Login.vue
+      const redirectTo = route.query.redirectFrom || '/';
+      router.push(redirectTo);
     } else {
-      router.push('/login');
+      // If auto-login fails, send them to login page but preserve the redirect parameter
+      router.push({ path: '/login', query: route.query });
     }
   }
 };

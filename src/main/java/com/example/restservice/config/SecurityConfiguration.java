@@ -12,6 +12,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.cors.reactive.CorsUtils;
 
 import java.util.List;
 
@@ -44,6 +45,7 @@ public class SecurityConfiguration {
 
                         // 1. SPECIFIC FIRST: Explicitly require auth for the edit sub-path
                         .requestMatchers("/api/pages/*/edit").authenticated()
+                        .requestMatchers("/authors/me").authenticated()
 
                         // 2. GENERAL SECOND: Allow public GET viewing for standard pages
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/pages/*").permitAll()
@@ -75,9 +77,10 @@ public class SecurityConfiguration {
         source.registerCorsConfiguration("/api/pages/*", allowPagesConfig);
         source.registerCorsConfiguration("/api/pages/*/edit", denyEditConfig);
 
-        // Highlight-start: 2. Apply your allowed origins to your auth endpoints!
-        source.registerCorsConfiguration("/auth/**", allowPagesConfig);
-        // Highlight-end
+        // 2. Apply your allowed origins to your auth endpoints!
+        // source.registerCorsConfiguration("/auth/**", allowPagesConfig);
+
+        source.registerCorsConfiguration("/**", allowPagesConfig);
 
         return source;
     }

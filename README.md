@@ -93,3 +93,31 @@ User Action: User clicks a + boundary split slot, types a word, and hits enter.
 3. Backend Processing: WordWebSocketController unpacks the parameters, executes wordService.createWord(), commits the transactional row to PostgreSQL, and broadcasts the permanent, database-verified Word entity out to the active channel.
 
 4. State Sync: Neighboring clients catch the entity, pass it through pageStore.insertWordIntoRecords(), modify the local Pinia memory linked-list tree, and a Vue deep watcher triggers a clean, instant UI re-render with zero slow-load animation flickers.
+
+## Setup Steps
+
+1. Make sure a postgres service is running.
+
+2. Generate a private and public key in src/main/resources
+
+```Plaintext
+openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out private.key
+openssl pkey -in private.key -pubout -out public.key
+```
+
+3. Run
+
+```Plaintext
+mvn clean install
+```
+
+4. Run
+
+```Plaintext
+./mvnw spring-boot:run
+```
+
+5. Navigate to src/collabbook and run 
+```Plaintext
+npm install && npm run dev
+```

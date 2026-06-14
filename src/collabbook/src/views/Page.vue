@@ -54,7 +54,7 @@
 </template>
 
 <script setup>
-import { onMounted, ref, computed, watch, nextTick, onBeforeUpdate } from 'vue';
+import { onMounted, ref, computed, watch, nextTick, onBeforeUpdate, watchEffect } from 'vue'; // Added watchEffect
 import { useRouter } from 'vue-router'; // Add this import
 
 import { usePageStore } from '@/stores/pageStore';
@@ -188,8 +188,27 @@ const initializePage = async () => {
   loadWords(!props.isEditMode, props.isEditMode);
 };
 
+const initializeSocketSafely = () => {
+  // If the user is authenticated and we have a token, connect right away
+  if (authStore.isAuthenticated && authStore.token) {
+    pageStore.initializeTestWebSocket();
+  } else {
+    // If we're hitting a race condition, wait for the token to arrive
+    const unwatch = watch(
+      () => authStore.token,
+      (newToken) => {
+        if (newToken) {
+          console.log("🔑 Valid token detected! Initializing WebSocket safely...");
+          pageStore.initializeTestWebSocket();
+          unwatch(); // Destroy the watcher so we don't connect multiple times
+        }
+      }
+    );
+  }
+};
+
 onMounted(() => {
-  pageStore.initializeTestWebSocket();
+  initializeSocketSafely(); // Protects against the authentication race condition
   initializePage();
 });
 

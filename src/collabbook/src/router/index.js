@@ -1,7 +1,9 @@
 import { createRouter, createWebHistory } from 'vue-router';
+import { useAuthStore } from "@/stores/authStore.js";
 import Page from '@/views/Page.vue';
 import Login from '@/views/Login.vue';
 import Signup from '@/views/Signup.vue';
+import Me from '@/views/Me.vue';
 
 const isDebugMode = false;
 
@@ -34,6 +36,11 @@ const routes = [
     path: '/signup',
     name: 'signup',
     component: Signup
+  },
+  {
+    path: '/me',
+    name: 'me',
+    component: Me
   }
 ];
 
@@ -41,19 +48,29 @@ const router = createRouter({
   history: createWebHistory(),
   routes
 });
-router.beforeEach((to, from) => {
-  // Replace this with your actual auth checking logic (e.g., checking Pinia/Vuex or localStorage)
-  const isAuthenticated = !!localStorage.getItem('token');
 
-  if (to.meta.requiresAuth && !isAuthenticated) {
-    // Instead of calling next({...}), you return the route object directly to redirect
-    return {
-      name: 'page-view',
-      params: { id: to.params.id || '1' }
-    };
+router.beforeEach(async (to, from) => {
+  const authStore = useAuthStore();
+
+  // If the route requires authentication
+  if (to.meta.requiresAuth) {
+
+    // If the store doesn't think we're authenticated but we have a raw token, verify it
+    if (!authStore.isAuthenticated && authStore.token) {
+      await authStore.fetchCurrentUser();
+    }
+
+    // Now make the definitive decision based on the updated state
+    if (!authStore.isAuthenticated) {
+      // 🛑 NOT Authenticated: Return the redirect object directly!
+      return {
+        path: '/login',
+        query: { redirectFrom: to.fullPath }
+      };
+    }
   }
 
-  // Explicitly returning nothing (or true) allows the navigation to proceed normally
+  // ✅ Authenticated or Public Page: Return nothing (or true) to allow the navigation
   return true;
 });
 
