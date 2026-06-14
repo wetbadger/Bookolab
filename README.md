@@ -98,7 +98,9 @@ User Action: User clicks a + boundary split slot, types a word, and hits enter.
 
 1. Make sure a postgres service is running.
 
-2. Generate a private and public key in src/main/resources
+See the [postgres docs](https://www.postgresql.org/docs/) on how to do this.
+
+2. Navigate to src/main/resources  and generate a private and public key 
 
 ```Plaintext
 openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out private.key
@@ -108,7 +110,7 @@ openssl pkey -in private.key -pubout -out public.key
 3. Run
 
 ```Plaintext
-mvn clean install
+export $(cat .env | xargs) && mvn clean install
 ```
 
 4. Run
