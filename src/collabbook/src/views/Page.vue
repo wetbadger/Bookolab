@@ -1,6 +1,10 @@
 <template>
-  <Paginator class="mt-4" />
-
+  <nav>
+    <ul class="nav">
+      <li><Paginator /></li>
+      <li v-if="isAuthenticated"><Profile /></li>
+    </ul>
+  </nav>
   <div class="mode-toggle">
     <!-- Use a click handler instead of a direct router-link path -->
     <button v-if="!isEditMode" @click="handleEditClick" class="btn">
@@ -61,6 +65,7 @@ import { usePageStore } from '@/stores/pageStore';
 import { useAuthStore } from '@/stores/authStore'; // Import the new store
 import Word from '@/components/Word.vue';
 import Plus from '@/components/Plus.vue';
+import Profile from '@/components/Profile.vue';
 import Paginator from "@/components/Pagenator.vue";
 
 const props = defineProps({
@@ -242,6 +247,10 @@ watch(() => props.id, () => {
 </script>
 
 <style scoped>
+.nav {
+  display: flex;
+  justify-content: space-around;
+}
 .mode-toggle {
   margin-bottom: 20px;
 }

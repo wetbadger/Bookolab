@@ -1,6 +1,6 @@
 <template>
   <div class="profile-container">
-    <h2>My Profile</h2>
+    <a href="/">bookolab.com</a>
     <hr />
 
     <div v-if="loading" class="loading-state">
@@ -14,7 +14,6 @@
 
     <div v-else-if="authStore.user" class="profile-card">
       <div class="profile-header">
-        <span class="avatar">✍️</span>
         <h3>Welcome back, {{ authStore.user.username }}!</h3>
       </div>
 
