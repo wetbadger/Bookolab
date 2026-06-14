@@ -98,7 +98,6 @@ Table "public.page"
  id                           | bigint | not null (Primary Key)
  first_word_id                | bigint | (Foreign Key -> word.id)
  last_word_id                 | bigint | (Foreign Key -> word.id)
- last_word_id_of_previous_page| bigint | (Cache / Fallback Pointer)
 ```
 
 ### Author Schema
