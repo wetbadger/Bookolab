@@ -57,7 +57,7 @@ public class WordWebSocketController {
 
         // 1. Process the core database insert
         Word transientWord = new Word(content, localId);
-        Word savedDatabaseWord = wordService.createWord(transientWord, currentPageId, localId, previousWordId, previousLocalId);
+        Word savedDatabaseWord = wordService.createWord(transientWord, currentPageId, localId, previousWordId, previousLocalId, username);
         
         // 2. CHANNEL 1: Broadcast the fresh word to the active page right away
         messagingTemplate.convertAndSend("/topic/page/" + currentPageId, savedDatabaseWord);

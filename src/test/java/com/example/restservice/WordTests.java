@@ -65,7 +65,7 @@ class WordTests {
         Word wordB = createTestWord("WordB");
 
         // Act: Create WordB pointing to WordA as its previous anchor
-        Word savedB = wordService.createWord(wordB, testPage.getId(), "abc123", wordA.getId(), null);
+        Word savedB = wordService.createWord(wordB, testPage.getId(), "abc123", wordA.getId(), null, "Test");
 
         // Assert: Verify WordB stole WordA's old next pointer (WordC)
         assertNotNull(savedB.getId());
@@ -81,7 +81,7 @@ class WordTests {
     @Test
     void testCreateWord_NoPreviousId_CreatesIsolatedOrHeadNode() {
         // Act: Create a standalone word with no previous reference (Prepends to Page 1)
-        Word standalone = wordService.createWord(createTestWord("Standalone"), testPage.getId(), "456def",  null, null);
+        Word standalone = wordService.createWord(createTestWord("Standalone"), testPage.getId(), "456def",  null, null, "Test");
 
         // Assert: Verify it saved cleanly
         assertNotNull(standalone.getId());
@@ -98,7 +98,7 @@ class WordTests {
     @Test
     void testDeleteWord_MiddleNode_TightensChain() {
         // Arrange: Insert WordB to establish an [A] -> [B] -> [C] sequence
-        Word wordB = wordService.createWord(createTestWord("WordB"), testPage.getId(), "789ghi", wordA.getId(), null);
+        Word wordB = wordService.createWord(createTestWord("WordB"), testPage.getId(), "789ghi", wordA.getId(), null, "Test");
 
         // Act: Delete the middleman (WordB)
         wordService.deleteWord(wordB.getId());

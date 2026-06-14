@@ -41,7 +41,10 @@
 
     <template v-for="(word, index) in displayedWords" :key="word.viewKey">
       <span :id="word.id">
-        <Word :data="word" />
+        <Word
+          :data="word"
+          @react="sendReactionToWebSocket"
+        />
       </span>
 
       <span v-if="isReallyEditing && word.showPlus" class="plus-sign">
@@ -113,14 +116,17 @@ const loadWords = async (streamWordsInRealTime, loadPlusSigns, isInstant = false
 
   while (currentWord) {
     const wordId = currentWord.id ? currentWord.id : lastWordIdOfPreviousPage.value;
-
+    console.log(currentWord);
     result.push({
       id: Number(wordId),
       content: currentWord.content,
       nextWordId: currentWord?.nextWord?.id ? Number(currentWord.nextWord.id) : null,
       showPlus: isInstant, // If instant mode, show the plus signs immediately!
       localId: currentWord.localId || null, // Keep the tracking ID bound if it exists
-      viewKey: currentWord.localId ? currentWord.localId : 'db-' + Number(wordId)
+      viewKey: currentWord.localId ? currentWord.localId : 'db-' + Number(wordId),
+      likeCount: currentWord.likeCount || 0,
+      dislikeCount: currentWord.dislikeCount || 0,
+      authorName: currentWord.authorName || 'Anonymous'
     });
 
     // If it's an initial view stream and NOT instant mode, add artificial delay
@@ -235,6 +241,12 @@ watch(
   },
   { deep: true }
 );
+
+// Add this right near your other handoff handlers in Page.vue
+const sendReactionToWebSocket = (wordId, reactionType) => {
+  // Pass along the target word ID, the page scope ID, and the 'LIKE'/'DISLIKE' action string
+  pageStore.sendReactionViaWebSocket(wordId, props.id, reactionType);
+};
 
 watch(() => props.isEditMode, () => {
   loadWords(!props.isEditMode, props.isEditMode);

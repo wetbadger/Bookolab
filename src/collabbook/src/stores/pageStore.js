@@ -16,6 +16,7 @@ export const usePageStore = defineStore('pageStore', {
     nextPageFirstWordId: null,
     stompClient: null,
     currentWebSocketSubscription: null,
+    currentReactionsSubscription: null,
     onRemoteWordAddedCallback: null,
     globalCounter: 0 // TODO: use for id generation
   }),
@@ -65,6 +66,50 @@ export const usePageStore = defineStore('pageStore', {
           this.insertWordIntoRecords(inboundPayload);
         }
       });
+
+      // --- CHANNEL 2: Live Reaction Updates 👈 ADD THIS ---
+      this.currentReactionsSubscription = this.stompClient.subscribe(`/topic/page/${pageId}/reactions`, (message) => {
+        const reactionEvent = JSON.parse(message.body);
+        console.log("❤️ Incoming live reaction caught:", reactionEvent);
+
+        this.updateWordReactionCount(reactionEvent.wordId, reactionEvent.reactionType, reactionEvent.totalCount);
+      });
+    },
+    updateWordReactionCount(wordId, reactionType, totalCount) {
+      if (!this.records) return;
+
+      let current = this.records.firstWord;
+      while (current) {
+        if (Number(current.id) === Number(wordId)) {
+          if (reactionType === 'LIKE') {
+            current.likeCount = totalCount;
+          } else if (reactionType === 'DISLIKE') {
+            current.dislikeCount = totalCount;
+          }
+          break;
+        }
+        current = current.nextWord;
+      }
+
+      this.records = { ...this.records };
+    },
+
+    // 👈 ADD THIS: Dispatches reactions to the /app/send-reaction destination
+    sendReactionViaWebSocket(wordId, currentPageId, reactionType) {
+      if (this.stompClient && this.stompClient.connected) {
+        const payload = {
+          wordId: wordId,
+          currentPageId: currentPageId,
+          reactionType: reactionType
+        };
+        this.stompClient.publish({
+          destination: '/app/send-reaction',
+          body: JSON.stringify(payload)
+        });
+        console.log("📡 Dispatched reaction action to backend:", payload);
+      } else {
+        console.error("STOMP Client disconnected. Cannot send reaction.");
+      }
     },
     // Processes cross-page linking updates from neighboring tabs
     handleCrossPageBoundaryPatch(patch) {
@@ -103,7 +148,10 @@ export const usePageStore = defineStore('pageStore', {
         id: newWord.id,
         localId: newWord.localId,
         content: newWord.content,
-        nextWord: null
+        nextWord: null,
+        authorName: newWord.author ? newWord.author.username : 'Anonymous',
+        likeCount: 0,
+        dislikeCount: 0
       };
 
       // 3. CASE A: List is completely empty

@@ -7,6 +7,7 @@ import com.example.restservice.dto.WordNodeDto;
 import com.example.restservice.model.Page;
 import com.example.restservice.model.Word;
 import com.example.restservice.repository.PageRepository;
+import com.example.restservice.repository.ReactionRepository;
 import com.example.restservice.repository.WordRepository;
 
 import org.jspecify.annotations.NullMarked;
@@ -16,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Map;
 
 @Service
 @NullMarked
@@ -23,10 +25,12 @@ public class PageService {
 
     private final PageRepository pageRepository;
     private final WordRepository wordRepository;
+    private final ReactionRepository reactionRepository;
 
-    public PageService(PageRepository pageRepository, WordRepository wordRepository) {
+    public PageService(PageRepository pageRepository, WordRepository wordRepository, ReactionRepository reactionRepository) {
         this.pageRepository = pageRepository;
         this.wordRepository = wordRepository;
+        this.reactionRepository = reactionRepository;
     }
 
     @Transactional(readOnly = true)
@@ -49,16 +53,22 @@ public class PageService {
         Word last = page.getLastWord();
 
         Long firstNextId = (first != null && first.getNextWord() != null) ? first.getNextWord().getId() : null;
-        Long firstPreviousWordId = wordRepository.findByNextWord(first)
-                .map(Word::getId)
-                .orElse(null); // Returns null if this word is the head of the list
+        Long firstPreviousWordId = wordRepository.findByNextWord(first).map(Word::getId).orElse(null);
         Long lastNextId = (last != null && last.getNextWord() != null) ? last.getNextWord().getId() : null;
-        Long lastPreviousWordId = wordRepository.findByNextWord(last)
-                .map(Word::getId)
-                .orElse(null); // Returns null if this word is the head of the list
+        Long lastPreviousWordId = wordRepository.findByNextWord(last).map(Word::getId).orElse(null);
 
         FlatLinkedWordDto firstWordDto = first != null ? new FlatLinkedWordDto(first.getId(), first.getContent(), firstNextId, firstPreviousWordId) : null;
         FlatLinkedWordDto lastWordDto = last != null ? new FlatLinkedWordDto(last.getId(), last.getContent(), lastNextId, lastPreviousWordId) : null;
+
+        // 🚀 Add individual checks for the flat layout boundaries
+        if (firstWordDto != null) {
+            firstWordDto.setLikeCount(reactionRepository.countByWordIdAndReactionType(first.getId(), com.example.restservice.enums.ReactionType.LIKE));
+            firstWordDto.setDislikeCount(reactionRepository.countByWordIdAndReactionType(first.getId(), com.example.restservice.enums.ReactionType.DISLIKE));
+        }
+        if (lastWordDto != null) {
+            lastWordDto.setLikeCount(reactionRepository.countByWordIdAndReactionType(last.getId(), com.example.restservice.enums.ReactionType.LIKE));
+            lastWordDto.setDislikeCount(reactionRepository.countByWordIdAndReactionType(last.getId(), com.example.restservice.enums.ReactionType.DISLIKE));
+        }
 
         return new PageResponseDto(page.getId(), firstWordDto, lastWordDto);
     }
@@ -87,39 +97,69 @@ public class PageService {
         }
 
         // 1. Create the head of our JSON tree
-        WordNodeDto headDto = new WordNodeDto(currentEntity.getId(), currentEntity.getContent());
+        String headAuthor = currentEntity.getAuthor() != null ? currentEntity.getAuthor().getUsername() : "Anonymous";
+        WordNodeDto headDto = new WordNodeDto(currentEntity.getId(), currentEntity.getContent(), headAuthor);
         WordNodeDto currentDto = headDto;
+
+        // Keep a list of all Node DTOs we generate so we can enrich them in batch later
+        List<WordNodeDto> allDtosOnPage = new java.util.ArrayList<>();
+        allDtosOnPage.add(headDto);
 
         // 2. Loop through the linked list until we process the last word of THIS page
         while (currentEntity != null) {
             if (currentEntity.getId().equals(lastEntity.getId())) {
-                break; 
+                break;
             }
 
             currentEntity = currentEntity.getNextWord();
-            
+
             if (currentEntity != null) {
-                WordNodeDto nextDto = new WordNodeDto(currentEntity.getId(), currentEntity.getContent());
+                String currentAuthor = currentEntity.getAuthor() != null ? currentEntity.getAuthor().getUsername() : "Anonymous";
+                WordNodeDto nextDto = new WordNodeDto(currentEntity.getId(), currentEntity.getContent(), currentAuthor);
                 currentDto.setNextWord(nextDto);
                 currentDto = nextDto;
+                allDtosOnPage.add(nextDto); // 👈 Track every node built
+            }
+        }
+
+        // 🚀 NEW STEP: Batch-enrich all generated word DTO nodes with their reaction stats
+        if (!allDtosOnPage.isEmpty()) {
+            List<Long> wordIds = allDtosOnPage.stream().map(WordNodeDto::getId).toList();
+            List<Map<String, Object>> rawCounts = reactionRepository.getReactionCountsForWords(wordIds);
+
+            for (WordNodeDto dto : allDtosOnPage) {
+                long likes = rawCounts.stream()
+                        .filter(m -> m.get("wordId").equals(dto.getId()) && m.get("type") == com.example.restservice.enums.ReactionType.LIKE)
+                        .mapToLong(m -> (Long) m.get("cnt")).findFirst().orElse(0L);
+
+                long dislikes = rawCounts.stream()
+                        .filter(m -> m.get("wordId").equals(dto.getId()) && m.get("type") == com.example.restservice.enums.ReactionType.DISLIKE)
+                        .mapToLong(m -> (Long) m.get("cnt")).findFirst().orElse(0L);
+
+                dto.setLikeCount(likes);
+                dto.setDislikeCount(dislikes);
             }
         }
 
         // 3. Map lastEntity directly to a flat DTO representation
         Long nextId = (lastEntity.getNextWord() != null) ? lastEntity.getNextWord().getId() : null;
-        // Look up previous ID efficiently using the repository query
         Long previousWordId = wordRepository.findByNextWord(currentEntity)
                 .map(Word::getId)
-                .orElse(null); // Returns null if this word is the head of the list
+                .orElse(null);
         FlatLinkedWordDto flatLastWord = new FlatLinkedWordDto(lastEntity.getId(), lastEntity.getContent(), nextId, previousWordId);
 
-        // 4. Get the last word id of the previous page. 
-        // This will come in handy when inserting words at the beginning of pages.
+        // 🚀 Enforce counts on the standalone flatLastWord DTO as well
+        if (flatLastWord != null) {
+            flatLastWord.setLikeCount(reactionRepository.countByWordIdAndReactionType(lastEntity.getId(), com.example.restservice.enums.ReactionType.LIKE));
+            flatLastWord.setDislikeCount(reactionRepository.countByWordIdAndReactionType(lastEntity.getId(), com.example.restservice.enums.ReactionType.DISLIKE));
+        }
+
+        // 4. Get the last word id of the previous page.
         if (id > 1) {
             lastWordIdOfPreviousPage = pageRepository.findById(id - 1)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Page not found"))
-                .getLastWord()
-                .getId();
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Page not found"))
+                    .getLastWord()
+                    .getId();
         }
 
         return new BoundedPageResponse(page.getId(), headDto, flatLastWord, lastWordIdOfPreviousPage);

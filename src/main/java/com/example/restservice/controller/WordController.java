@@ -44,12 +44,13 @@ public class WordController {
             @RequestParam(required = true) Long currentPageId,
             @RequestParam(required = true) String localId,
             @RequestParam(required = false) Long previousWordId,
-            @RequestParam(required = false) String previousLocalId
+            @RequestParam(required = false) String previousLocalId,
+            @RequestParam(required = false) String authorName
             
     ) throws InterruptedException {
         System.out.println(String.format("Word being created... content: %s localId: %s previousWordId: %d previousLocalId: %s", word, localId, previousWordId, previousLocalId));
         Thread.sleep(1000);
-        return wordService.createWord(word, currentPageId, localId, previousWordId, previousLocalId);
+        return wordService.createWord(word, currentPageId, localId, previousWordId, previousLocalId, authorName);
     }
 
     @PutMapping("/{id}")

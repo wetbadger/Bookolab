@@ -3,6 +3,7 @@ package com.example.restservice.service;
 import com.example.restservice.dto.FlatLinkedWordDto;
 import com.example.restservice.model.Word;
 import com.example.restservice.model.Page;
+import com.example.restservice.repository.AuthorRepository;
 import com.example.restservice.repository.PageRepository;
 import com.example.restservice.repository.WordRepository;
 import jakarta.annotation.Nullable;
@@ -21,11 +22,13 @@ public class WordService {
 
     private final WordRepository wordRepository;
     private final PageRepository pageRepository;
+    private final AuthorRepository authorRepository;
 
     // Update constructor injection
-    public WordService(WordRepository wordRepository, PageRepository pageRepository) {
+    public WordService(WordRepository wordRepository, PageRepository pageRepository, AuthorRepository authorRepository) {
         this.wordRepository = wordRepository;
         this.pageRepository = pageRepository;
+        this.authorRepository = authorRepository;
     }
 
     @Transactional(readOnly = true)
@@ -80,12 +83,18 @@ public class WordService {
      * @return the created word.
      */
     @Transactional
-    public Word createWord(Word newWord, Long currentPageId, String localId, @Nullable Long previousWordId, @Nullable String previousLocalId) {
+    public Word createWord(Word newWord, Long currentPageId, String localId,
+                           @Nullable Long previousWordId, @Nullable String previousLocalId,
+                           String username) {
         newWord.setLocalId(localId);
+
+        // FETCH THE AUTHENTICATED AUTHOR AND LINK THEM TO THE WORD
+        var author = authorRepository.findAuthorByUsername(username)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Author profile not found for creation context: " + username));
+        newWord.setAuthor(author);
 
         // 1. Determine the previous word anchor based on identity precedence
         Word previousWord = null;
-
         if (previousLocalId != null && !previousLocalId.isBlank()) {
             previousWord = wordRepository.findByLocalId(previousLocalId)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Previous word not found via localId: " + previousLocalId));

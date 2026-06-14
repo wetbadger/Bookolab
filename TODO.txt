@@ -1,0 +1,5 @@
+Indicate that you have already liked or disliked something
+Type password again field
+Make sure passwords are secure
+Give users 2 minutes to edit or delete their words
+Show how long ago a word was created
