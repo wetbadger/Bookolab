@@ -53,19 +53,37 @@ public class ReactionWebSocketController {
         ReactionType incomingType = ReactionType.valueOf((String) payload.get("reactionType"));
 
         // 3. Process database toggle logic via your service layer
-        // Modify your service logic to return a string action: "ADDED" or "REMOVED"
         String actionTaken = reactionService.handleReactionAndReturnAction(authorDetails.getId(), wordId, incomingType);
+        System.out.println("Action taken: " + actionTaken);
 
-        // 4. Calculate fresh aggregate statistics
-        long freshCount = reactionRepository.countByWordIdAndReactionType(wordId, incomingType);
+        String destination = "/topic/page/" + currentPageId + "/reactions";
 
-        // 5. Package up the update event
-        ReactionUpdateEvent event = new ReactionUpdateEvent(wordId, incomingType, freshCount, actionTaken);
+        // 4. Handle Broadcast Logic based on Action
+        if ("CHANGED".equals(actionTaken)) {
+            // Find the opposite reaction type
+            ReactionType previousType = (incomingType == ReactionType.LIKE) ? ReactionType.DISLIKE : ReactionType.LIKE;
 
-        // 6. Broadcast the ripple to all authors viewing this page
-        // Frontend subscribes to: /topic/page/{currentPageId}/reactions
-        messagingTemplate.convertAndSend("/topic/page/" + currentPageId + "/reactions", event);
+            // Fetch fresh counts for BOTH types now that the DB has updated
+            long freshIncomingCount = reactionRepository.countByWordIdAndReactionType(wordId, incomingType);
+            long freshPreviousCount = reactionRepository.countByWordIdAndReactionType(wordId, previousType);
 
-        System.out.println("❤️ Reaction update broadcasted for Word ID " + wordId + " on Page " + currentPageId);
+            // Broadcast 1: The old reaction was REMOVED (decremented)
+            ReactionUpdateEvent removeEvent = new ReactionUpdateEvent(wordId, previousType, freshPreviousCount, "REMOVED");
+            messagingTemplate.convertAndSend(destination, removeEvent);
+
+            // Broadcast 2: The new reaction was ADDED (incremented)
+            ReactionUpdateEvent addEvent = new ReactionUpdateEvent(wordId, incomingType, freshIncomingCount, "ADDED");
+            messagingTemplate.convertAndSend(destination, addEvent);
+
+            System.out.println("🔄 Reaction CHANGED. Dual broadcast sent for Word ID " + wordId);
+
+        } else {
+            // Standard flow for "ADDED" or "REMOVED"
+            long freshCount = reactionRepository.countByWordIdAndReactionType(wordId, incomingType);
+            ReactionUpdateEvent event = new ReactionUpdateEvent(wordId, incomingType, freshCount, actionTaken);
+
+            messagingTemplate.convertAndSend(destination, event);
+            System.out.println("❤️ Reaction update broadcasted for Word ID " + wordId + " on Page " + currentPageId);
+        }
     }
 }
