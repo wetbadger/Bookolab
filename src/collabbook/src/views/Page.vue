@@ -117,7 +117,6 @@ const loadWords = async (streamWordsInRealTime, loadPlusSigns, isInstant = false
 
   while (currentWord) {
     const wordId = currentWord.id ? currentWord.id : lastWordIdOfPreviousPage.value;
-    console.log(currentWord);
     result.push({
       id: Number(wordId),
       content: currentWord.content,

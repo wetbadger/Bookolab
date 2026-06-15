@@ -1,4 +1,6 @@
 [done] Indicate that you have already liked or disliked something
+[done] double click to like
+[done] triple click to dislike
 Type password again field
 Make sure passwords are secure
 Give users 2 minutes to edit or delete their words

@@ -1,6 +1,6 @@
 <template>
   <span class="word-container">
-    <span class="word-text">{{ data.content }}</span>
+    <span class="word-text" @click="registerClick">{{ data.content }}</span>
 
     <span class="reaction-badges">
       <div class="tooltip-content">
@@ -51,6 +51,8 @@ const emit = defineEmits(['react']);
 const isLikeActive = ref(props.data.userLiked);
 const isDislikeActive = ref(props.data.userDisliked);
 
+let clickCount = 0;
+
 const toggleLike = () => {
   isLikeActive.value = !isLikeActive.value; // Simple true/false toggle
   emit('react', props.data.id, 'LIKE');
@@ -66,6 +68,30 @@ const toggleDislike = () => {
     isLikeActive.value = false;
   }
 };
+
+let isTimingClicks = false;
+
+const registerClick = () => {
+  clickCount += 1;
+  if (!isTimingClicks) {
+    isTimingClicks = true;
+    setTimeout(
+      function () {
+        countClicks();
+      }, 500
+    );
+  }
+}
+
+const countClicks = () => {
+  isTimingClicks = false;
+  if (clickCount === 2) {
+    toggleLike();
+  } else if (clickCount === 3) {
+    toggleDislike();
+  }
+  clickCount = 0;
+}
 </script>
 
 <style scoped>
