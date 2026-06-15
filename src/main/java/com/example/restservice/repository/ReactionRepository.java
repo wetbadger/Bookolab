@@ -23,4 +23,14 @@ public interface ReactionRepository extends JpaRepository<Reaction, Long> {
             "WHERE r.word.id IN :wordIds " +
             "GROUP BY r.word.id, r.reactionType")
     List<Map<String, Object>> getReactionCountsForWords(@Param("wordIds") List<Long> wordIds);
+
+    /**
+     * Finds all word IDs that a specific user has reacted to with a given reaction type.
+     */
+    @Query("SELECT r.word.id FROM Reaction r WHERE r.author.id = :authorId AND r.word.id IN :wordIds AND r.reactionType = :reactionType")
+    List<Long> findWordIdsReactedByUser(
+            @Param("authorId") Long authorId,
+            @Param("wordIds") List<Long> wordIds,
+            @Param("reactionType") ReactionType reactionType
+    );
 }

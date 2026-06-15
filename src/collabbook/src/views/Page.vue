@@ -44,6 +44,7 @@
         <Word
           :data="word"
           @react="sendReactionToWebSocket"
+          :isAuthenticated="isAuthenticated"
         />
       </span>
 
@@ -126,7 +127,9 @@ const loadWords = async (streamWordsInRealTime, loadPlusSigns, isInstant = false
       viewKey: currentWord.localId ? currentWord.localId : 'db-' + Number(wordId),
       likeCount: currentWord.likeCount || 0,
       dislikeCount: currentWord.dislikeCount || 0,
-      authorName: currentWord.authorName || 'Anonymous'
+      authorName: currentWord.authorName || 'Anonymous',
+      userLiked: currentWord.userLiked,
+      userDisliked: currentWord.userDisliked
     });
 
     // If it's an initial view stream and NOT instant mode, add artificial delay

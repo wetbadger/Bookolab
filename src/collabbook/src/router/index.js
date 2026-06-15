@@ -5,7 +5,7 @@ import Login from '@/views/Login.vue';
 import Signup from '@/views/Signup.vue';
 import Me from '@/views/Me.vue';
 
-const isDebugMode = false;
+const isDebugMode = true;
 
 const routes = [
   {

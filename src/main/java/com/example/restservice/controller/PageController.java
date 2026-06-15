@@ -7,6 +7,8 @@ import com.example.restservice.service.PageService;
 import org.jspecify.annotations.NullMarked;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -35,8 +37,18 @@ public class PageController {
     }
 
     @GetMapping("/{id}")
-    public BoundedPageResponse getPage(@PathVariable Long id) {
-        return pageService.getBoundedPage(id);
+    public BoundedPageResponse getPage(@PathVariable Long id, Authentication authentication) {
+        String username = null;
+
+        // Check for null before extracting the name
+        if (authentication != null && authentication.isAuthenticated()) {
+            username = authentication.getName();
+            System.out.println("-> Logged in user: " + username);
+        } else {
+            System.out.println("-> Anonymous user browsing page");
+        }
+
+        return pageService.getBoundedPage(id, username);
     }
 
     @PostMapping

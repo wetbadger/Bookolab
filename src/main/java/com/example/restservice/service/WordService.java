@@ -1,14 +1,19 @@
 package com.example.restservice.service;
 
 import com.example.restservice.dto.FlatLinkedWordDto;
+import com.example.restservice.enums.ReactionType;
 import com.example.restservice.model.Word;
 import com.example.restservice.model.Page;
 import com.example.restservice.repository.AuthorRepository;
 import com.example.restservice.repository.PageRepository;
+import com.example.restservice.repository.ReactionRepository;
 import com.example.restservice.repository.WordRepository;
 import jakarta.annotation.Nullable;
 import org.jspecify.annotations.NullMarked;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -23,12 +28,14 @@ public class WordService {
     private final WordRepository wordRepository;
     private final PageRepository pageRepository;
     private final AuthorRepository authorRepository;
+    private final ReactionRepository reactionRepository;
 
     // Update constructor injection
-    public WordService(WordRepository wordRepository, PageRepository pageRepository, AuthorRepository authorRepository) {
+    public WordService(WordRepository wordRepository, PageRepository pageRepository, AuthorRepository authorRepository, ReactionRepository reactionRepository) {
         this.wordRepository = wordRepository;
         this.pageRepository = pageRepository;
         this.authorRepository = authorRepository;
+        this.reactionRepository = reactionRepository;
     }
 
     @Transactional(readOnly = true)
@@ -53,7 +60,9 @@ public class WordService {
                 .map(Word::getId)
                 .orElse(null); // Returns null if this word is the head of the list
         
-        return new FlatLinkedWordDto(word.getId(), word.getContent(), nextWordId, previousWordId);
+        FlatLinkedWordDto flatLinkedWordDto = new FlatLinkedWordDto(word.getId(), word.getContent(), nextWordId, previousWordId);
+
+        return flatLinkedWordDto;
     }
 
     /*

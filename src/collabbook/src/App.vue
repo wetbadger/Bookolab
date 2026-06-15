@@ -1,5 +1,14 @@
 <script setup>
 import { RouterView } from 'vue-router';
+import { onMounted } from 'vue';
+import { useAuthStore } from '@/stores/authStore';
+
+const authStore = useAuthStore();
+
+onMounted(async () => {
+  // Fire the verification network call immediately when the app mounts
+  await authStore.fetchCurrentUser();
+});
 </script>
 
 <template>

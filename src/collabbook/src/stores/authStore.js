@@ -2,12 +2,15 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { jwtDecode } from 'jwt-decode';
-import api from '@/api/axios'; // Import your global axios instance
+import api from '@/api/axios';
 
 export const useAuthStore = defineStore('auth', () => {
   const token = ref(localStorage.getItem('token'));
-  const user = ref(null); // 👈 Added state to hold the backend Author model
+  const user = ref(null);
   const error = ref(null);
+
+  // 🚀 1. Initialize to true if a token exists (we need to verify it), otherwise false
+  const isAuthLoading = ref(!!localStorage.getItem('token'));
 
   const isAuthenticated = computed(() => {
     if (!token.value || token.value === 'null' || token.value === 'undefined') return false;
@@ -42,19 +45,23 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  // Fetch the /authors/me endpoint using our configured api instance
   async function fetchCurrentUser() {
-    if (!isAuthenticated.value) return null;
+    if (!isAuthenticated.value) {
+      isAuthLoading.value = false; // 🚀 Safeguard: stop loading if token is invalid/missing
+      return null;
+    }
+
+    isAuthLoading.value = true; // 🚀 Ensure loading state turns on when fetching
     try {
-      // Your api instance handles the interceptor / headers automatically!
       const response = await api.get('/authors/me');
       user.value = response.data;
       return user.value;
     } catch (err) {
       error.value = err.response?.data?.message || 'Failed to fetch user profile.';
-      // If the token expired or is malformed, clean up
       logout();
       return null;
+    } finally {
+      isAuthLoading.value = false; // 🚀 Always turn off loading whether it succeeds or fails
     }
   }
 
@@ -65,10 +72,21 @@ export const useAuthStore = defineStore('auth', () => {
 
   function logout() {
     token.value = null;
-    user.value = null; // 👈 Clean up user data on logout
+    user.value = null;
+    isAuthLoading.value = false; // 🚀 Reset on logout
     localStorage.removeItem('token');
   }
 
-  // Expose user and fetchCurrentUser to components
-  return { token, user, error, isAuthenticated, login, signup, fetchCurrentUser, logout };
+  // 🚀 2. Remember to expose 'isAuthLoading' to components
+  return {
+    token,
+    user,
+    error,
+    isAuthenticated,
+    isAuthLoading,
+    login,
+    signup,
+    fetchCurrentUser,
+    logout
+  };
 });

@@ -5,13 +5,27 @@
     <span class="reaction-badges">
       <div class="tooltip-content">
         <div class="buttons-row">
-          <button class="badge like-btn" @click="$emit('react', data.id, 'LIKE')">
-            👍 <span class="count">{{ data.likeCount || 0 }}</span>
-          </button>
 
-          <button class="badge dislike-btn" @click="$emit('react', data.id, 'DISLIKE')">
+          <BButton
+            class="badge like-btn"
+            :class="{ active: isLikeActive }"
+            @click="toggleLike"
+            :disabled="!isAuthenticated"
+            v-b-tooltip="!isAuthenticated ? 'Log in to like' : ''"
+          >
+            👍 <span class="count">{{ data.likeCount || 0 }}</span>
+          </BButton>
+
+          <BButton
+            class="badge dislike-btn"
+            :class="{ active: isDislikeActive }"
+            @click="toggleDislike"
+            :disabled="!isAuthenticated"
+            v-b-tooltip="!isAuthenticated ? 'Log in to dislike' : ''"
+          >
             👎 <span class="count">{{ data.dislikeCount || 0 }}</span>
-          </button>
+          </BButton>
+
         </div>
 
         <div class="author-info">
@@ -23,14 +37,35 @@
 </template>
 
 <script setup>
-defineProps({
-  data: {
-    type: Object,
-    required: true
-  }
+import { ref } from 'vue';
+import { BButton, vBTooltip } from 'bootstrap-vue-next';
+
+const props = defineProps({
+  data: { type: Object, required: true },
+  isAuthenticated: { type: Boolean, required: true }
 });
 
-defineEmits(['react']);
+const emit = defineEmits(['react']);
+
+// Simple local booleans initialized to whatever the server said originally
+const isLikeActive = ref(props.data.userLiked);
+const isDislikeActive = ref(props.data.userDisliked);
+
+const toggleLike = () => {
+  isLikeActive.value = !isLikeActive.value; // Simple true/false toggle
+  emit('react', props.data.id, 'LIKE');
+  if (isLikeActive.value && isDislikeActive.value) {
+    isDislikeActive.value = false;
+  }
+};
+
+const toggleDislike = () => {
+  isDislikeActive.value = !isDislikeActive.value; // Simple true/false toggle
+  emit('react', props.data.id, 'DISLIKE');
+  if (isLikeActive.value && isDislikeActive.value) {
+    isLikeActive.value = false;
+  }
+};
 </script>
 
 <style scoped>
@@ -81,6 +116,17 @@ defineEmits(['react']);
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+/* Invisible bridge touching the bottom of the word container */
+.tooltip-content::before {
+  content: '';
+  position: absolute;
+  top: -12px; /* Stretches up across the gap */
+  left: 0;
+  width: 100%;
+  height: 12px; /* Matches the gap height */
+  background: transparent; /* Invisible to the user */
 }
 
 /* The Arrow (Divet Triangle) */
@@ -139,15 +185,38 @@ defineEmits(['react']);
   font-size: 0.8rem;
 }
 
-.badge:hover {
+.badge:not(:disabled):hover {
   background: #e5e7eb;
 }
 
-.like-btn:active { background-color: #d1fae5; }
-.dislike-btn:active { background-color: #fee2e2; }
+.like-btn:not(:disabled):active { background-color: #d1fae5; }
+.dislike-btn:not(:disabled):active { background-color: #fee2e2; }
+
+.badge:disabled {
+  background-color: white;
+  border-color: white;
+  pointer-events: auto !important;
+}
 
 .count {
   font-weight: bold;
   color: #4b5563;
+}
+
+/* Highlight styles when the user has reacted */
+.like-btn.active {
+  background-color: #d1fae5; /* Light green background */
+  border-color: #10b981;     /* Emerald border accent */
+}
+
+.dislike-btn.active {
+  background-color: #fee2e2; /* Light red background */
+  border-color: #ef4444;     /* Red border accent */
+}
+
+/* Make the count extra bold when active */
+.badge.active .count {
+  font-weight: 800; /* Extra bold */
+  color: #111827;   /* Darker text color for emphasis */
 }
 </style>

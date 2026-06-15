@@ -7,6 +7,8 @@ public class WordNodeDto {
     private long likeCount = 0;
     private long dislikeCount = 0;
     private String authorName;
+    private boolean userLiked;
+    private boolean userDisliked;
 
     public WordNodeDto(Long id, String content, String authorName) {
         this.id = id;
@@ -25,4 +27,20 @@ public class WordNodeDto {
     public void setDislikeCount(long dislikeCount) { this.dislikeCount = dislikeCount; }
     public String getAuthorName() { return authorName; }
     public void setAuthorName(String authorName) { this.authorName = authorName; }
+
+    public boolean isUserLiked() {
+        return userLiked;
+    }
+
+    public void setUserLiked(boolean userLiked) {
+        this.userLiked = userLiked;
+    }
+
+    public boolean isUserDisliked() {
+        return userDisliked;
+    }
+
+    public void setUserDisliked(boolean userDisliked) {
+        this.userDisliked = userDisliked;
+    }
 }

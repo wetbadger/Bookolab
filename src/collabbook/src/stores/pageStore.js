@@ -237,7 +237,20 @@ export const usePageStore = defineStore('pageStore', {
       this.loading = true;
       this.error = null;
       try {
-        const response = await axios.get(`${API_BASE_URL}/api/pages/${id}`);
+        // 1. Grab the token exactly like you do for WebSockets
+        const token = localStorage.getItem('token');
+
+        // 2. Set up headers dynamically if the token exists
+        const config = {};
+        if (token) {
+          config.headers = {
+            Authorization: `Bearer ${token}`
+          };
+        }
+
+        // 3. Pass the config with headers to your GET request
+        const response = await axios.get(`${API_BASE_URL}/api/pages/${id}`, config);
+
         this.records = response.data;
         this.nextPageFirstWordId = this.records.lastWord?.nextWordId;
 
@@ -251,6 +264,7 @@ export const usePageStore = defineStore('pageStore', {
         this.loading = false;
       }
     },
+
     async addWord(content, currentPageId, localId, previousWordId, nextWordId, previousLocalId=null) {
       this.uploading = true;
       this.error = null;

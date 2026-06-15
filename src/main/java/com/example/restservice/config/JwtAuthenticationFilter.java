@@ -6,6 +6,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.jspecify.annotations.NonNull;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -44,8 +45,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     ) throws ServletException, IOException {
         final String authHeader = request.getHeader("Authorization");
 
-        System.out.println(authHeader);
-
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
@@ -57,9 +56,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
-            System.out.println(username);
-            System.out.println(authentication);
-            if (username != null && authentication == null) {
+            if (username != null && (authentication == null || authentication instanceof AnonymousAuthenticationToken)) {
                 System.out.println("🔍 Filter processing JWT for user: " + username);
                 UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
                 System.out.println("📋 User authorities found in DB: " + userDetails.getAuthorities());

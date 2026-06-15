@@ -4,18 +4,26 @@ import com.example.restservice.dto.BoundedPageResponse;
 import com.example.restservice.dto.FlatLinkedWordDto;
 import com.example.restservice.dto.PageResponseDto;
 import com.example.restservice.dto.WordNodeDto;
+import com.example.restservice.enums.ReactionType;
+import com.example.restservice.model.Author;
 import com.example.restservice.model.Page;
 import com.example.restservice.model.Word;
+import com.example.restservice.repository.AuthorRepository;
 import com.example.restservice.repository.PageRepository;
 import com.example.restservice.repository.ReactionRepository;
 import com.example.restservice.repository.WordRepository;
 
 import org.jspecify.annotations.NullMarked;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -25,11 +33,13 @@ public class PageService {
 
     private final PageRepository pageRepository;
     private final WordRepository wordRepository;
+    private final AuthorRepository authorRepository;
     private final ReactionRepository reactionRepository;
 
-    public PageService(PageRepository pageRepository, WordRepository wordRepository, ReactionRepository reactionRepository) {
+    public PageService(PageRepository pageRepository, WordRepository wordRepository, AuthorRepository authorRepository, ReactionRepository reactionRepository) {
         this.pageRepository = pageRepository;
         this.wordRepository = wordRepository;
+        this.authorRepository = authorRepository;
         this.reactionRepository = reactionRepository;
     }
 
@@ -84,7 +94,13 @@ public class PageService {
     function but goes to the cache instead. If the page has no changes, we simply return the cached version.
     */
     @Transactional(readOnly = true)
-    public BoundedPageResponse getBoundedPage(Long id) {
+    public BoundedPageResponse getBoundedPage(Long id, String username) {
+        Author author = null;
+        if (username != null) {
+            author = authorRepository.findAuthorByUsername(username)
+                    .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+        }
+
         Page page = pageRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Page not found"));
 
@@ -123,9 +139,24 @@ public class PageService {
         }
 
         // 🚀 NEW STEP: Batch-enrich all generated word DTO nodes with their reaction stats
+        // 🚀 NEW STEP: Batch-enrich all generated word DTO nodes with their reaction stats
         if (!allDtosOnPage.isEmpty()) {
-            List<Long> wordIds = allDtosOnPage.stream().map(WordNodeDto::getId).toList();
-            List<Map<String, Object>> rawCounts = reactionRepository.getReactionCountsForWords(wordIds);
+            List<Long> wordIdsList = allDtosOnPage.stream().map(WordNodeDto::getId).toList();
+            List<Map<String, Object>> rawCounts = reactionRepository.getReactionCountsForWords(wordIdsList);
+
+            // Define lookups with wider scope so the loop can safely read them
+            java.util.Set<Long> likedWordIdsSet = java.util.Collections.emptySet();
+            java.util.Set<Long> dislikedWordIdsSet = java.util.Collections.emptySet();
+
+            if (author != null) {
+                // Fetching the user's personal interactions
+                likedWordIdsSet = new java.util.HashSet<>(
+                        reactionRepository.findWordIdsReactedByUser(author.getId(), wordIdsList, ReactionType.LIKE)
+                );
+                dislikedWordIdsSet = new java.util.HashSet<>(
+                        reactionRepository.findWordIdsReactedByUser(author.getId(), wordIdsList, ReactionType.DISLIKE)
+                );
+            }
 
             for (WordNodeDto dto : allDtosOnPage) {
                 long likes = rawCounts.stream()
@@ -138,6 +169,10 @@ public class PageService {
 
                 dto.setLikeCount(likes);
                 dto.setDislikeCount(dislikes);
+
+                // Set the boolean states using O(1) set lookups
+                dto.setUserLiked(likedWordIdsSet.contains(dto.getId()));
+                dto.setUserDisliked(dislikedWordIdsSet.contains(dto.getId()));
             }
         }
 
@@ -178,7 +213,7 @@ public class PageService {
                     existingPage.setLastWord(pageDetails.getLastWord());
                     return pageRepository.save(existingPage);
                 })
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Page not found")); 
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Page not found"));
                 // Note: Fixed an error in your original code where update/delete said "Course not found"
     }
 
