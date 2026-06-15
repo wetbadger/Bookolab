@@ -1,5 +1,7 @@
-Indicate that you have already liked or disliked something
+[done] Indicate that you have already liked or disliked something
 Type password again field
 Make sure passwords are secure
 Give users 2 minutes to edit or delete their words
 Show how long ago a word was created
+Filter for ethnic slurs
+Truncate the pages every 10 minutes
