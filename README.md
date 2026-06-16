@@ -132,26 +132,42 @@ User Action: User clicks a + boundary split slot, types a word, and hits enter.
 
 See the [postgres docs](https://www.postgresql.org/docs/) on how to do this.
 
-2. Navigate to src/main/resources  and generate a private and public key 
+2. Create a .env file in the root folder that looks like this:
+
+```Plaintext
+SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/db_name
+SPRING_DATASOURCE_USERNAME=postgres
+SPRING_DATASOURCE_PASSWORD=local_password
+
+JWT_SECRET_KEY=abcd1234
+```
+
+3. Create a .env file in the src/collabbook directory that looks like this:
+
+```Plaintext
+VITE_API_BASE_URL=http://localhost:8080
+```
+
+4. Navigate to src/main/resources  and generate a private and public key 
 
 ```Plaintext
 openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out private.key
 openssl pkey -in private.key -pubout -out public.key
 ```
 
-3. Install
+5. Install
 
 ```Plaintext
 export $(cat .env | xargs) && mvn clean install
 ```
 
-4. Run
+5. Run
 
 ```Plaintext
 ./mvnw spring-boot:run
 ```
 
-5. Navigate to src/collabbook and run 
+6. Navigate to src/collabbook and run 
 ```Plaintext
 npm install && npm run dev
 ```
