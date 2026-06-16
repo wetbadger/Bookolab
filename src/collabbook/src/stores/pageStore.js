@@ -39,12 +39,38 @@ export const usePageStore = defineStore('pageStore', {
 
       this.stompClient.onConnect = (frame) => {
         console.log('🎉 Connected to Spring STOMP Broker!');
+        const serverUser = frame.headers['user-name'];
+        if (serverUser === 'anonymousUser') {
+          // Clear your frontend storage so it stops sending the bad token on refresh
+          localStorage.removeItem('token');
+        }
         if (this.records?.id) {
           this.subscribeToPageTopic(this.records.id);
         }
+
       };
 
       this.stompClient.activate();
+    },
+    // 🚀 ADD THIS: Safe disconnection action
+    disconnectWebSocket() {
+      if (this.stompClient) {
+        // Unsubscribe from active topics if they exist
+        if (this.currentSubscription) this.currentSubscription.unsubscribe();
+        if (this.currentReactionsSubscription) this.currentReactionsSubscription.unsubscribe();
+
+        // Deactivate the stomp client link completely
+        this.stompClient.deactivate();
+        this.stompClient = null;
+        console.log('🔌 STOMP Client safely deactivated.');
+      }
+    },
+
+// 🚀 ADD THIS: Forced reconnect action to break out of the early return block
+    reconnectWebSocket() {
+      console.log('🔄 Forcing WebSocket reconnection with fresh credentials...');
+      this.disconnectWebSocket(); // Kill the unauthenticated connection
+      this.initializeTestWebSocket(); // Fire up a completely pristine authenticated one
     },
     subscribeToPageTopic(pageId) {
       if (!this.stompClient || !this.stompClient.connected) return;

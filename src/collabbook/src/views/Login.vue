@@ -45,8 +45,10 @@
 import { ref, reactive } from 'vue';
 import { useAuthStore } from '@/stores/authStore';
 import { useRouter, useRoute } from 'vue-router';
+import {usePageStore} from "@/stores/pageStore.js";
 
 const authStore = useAuthStore();
+const pageStore = usePageStore();
 const router = useRouter();
 const route = useRoute();
 
@@ -62,6 +64,7 @@ const handleLogin = async () => {
   loading.value = false;
 
   if (success) {
+    pageStore.reconnectWebSocket();
     // Check if the user was intercepted trying to edit a page
     const redirectTo = route.query.redirectFrom || '/';
     router.push(redirectTo);

@@ -205,27 +205,8 @@ const initializePage = async () => {
   loadWords(!props.isEditMode, props.isEditMode);
 };
 
-const initializeSocketSafely = () => {
-  // If the user is authenticated and we have a token, connect right away
-  if (authStore.isAuthenticated && authStore.token) {
-    pageStore.initializeTestWebSocket();
-  } else {
-    // If we're hitting a race condition, wait for the token to arrive
-    const unwatch = watch(
-      () => authStore.token,
-      (newToken) => {
-        if (newToken) {
-          console.log("🔑 Valid token detected! Initializing WebSocket safely...");
-          pageStore.initializeTestWebSocket();
-          unwatch(); // Destroy the watcher so we don't connect multiple times
-        }
-      }
-    );
-  }
-};
-
 onMounted(() => {
-  initializeSocketSafely(); // Protects against the authentication race condition
+  pageStore.initializeTestWebSocket();
   initializePage();
 });
 
