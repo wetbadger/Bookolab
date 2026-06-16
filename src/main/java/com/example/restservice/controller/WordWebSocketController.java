@@ -100,7 +100,7 @@ public class WordWebSocketController {
 
         Map<String, Object> deleteMessage = Map.of(
                 "type", "DELETE_WORD",
-                "previousWordId", prevWordId,
+                "previousWordId", Optional.ofNullable(prevWordId),
                 "nextWord", Optional.ofNullable(nextWord)
         );
 

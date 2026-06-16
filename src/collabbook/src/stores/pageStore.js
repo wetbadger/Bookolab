@@ -223,16 +223,20 @@ export const usePageStore = defineStore('pageStore', {
       let previousWordId = payload.previousWordId;
       let nextWord = payload.nextWord;
 
-      let current = this.records.firstWord;
-      while (current) {
-        if (current.id === previousWordId) {
-          const temp = current?.nextWord?.nextWord;
-          console.log(temp);
-          current.nextWord = nextWord;
-          nextWord.nextWord = temp?.nextWord;
-          break;
+      if (this.records.lastWordIdOfPreviousPage === previousWordId) {
+        this.records.firstWord = this.records.firstWord.nextWord;
+      } else {
+        let current = this.records.firstWord;
+        while (current) {
+          if (current.id === previousWordId) {
+            const temp = current?.nextWord?.nextWord;
+            console.log(temp);
+            current.nextWord = nextWord;
+            nextWord.nextWord = temp?.nextWord;
+            break;
+          }
+          current = current.nextWord;
         }
-        current = current.nextWord;
       }
     },
 
