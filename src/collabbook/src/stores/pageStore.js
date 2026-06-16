@@ -218,8 +218,6 @@ export const usePageStore = defineStore('pageStore', {
     deleteWordFromRecords(payload) {
       if (!this.records) return;
 
-      console.log(payload);
-
       let previousWordId = payload.previousWordId;
       let nextWord = payload.nextWord;
 
@@ -230,7 +228,6 @@ export const usePageStore = defineStore('pageStore', {
         while (current) {
           if (current.id === previousWordId) {
             const temp = current?.nextWord?.nextWord;
-            console.log(temp);
             current.nextWord = nextWord;
             nextWord.nextWord = temp?.nextWord;
             break;
