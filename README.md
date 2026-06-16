@@ -7,7 +7,7 @@ A real-time, multi-user collaborative writing engine where an infinite book is c
 ## 🛠 Tech Stack
 
 * **Frontend:** Vue 3 (Composition API), Pinia (State Management), Axios, `@stomp/stompjs` (WebSocket/STOMP Client).
-* **Backend:** Java 17, Spring Boot, Spring WebSockets, Spring Data JPA, Java Scheduling.
+* **Backend:** Java 25, Spring Boot 4, Spring WebSockets, Spring Data JPA, Java Scheduling.
 * **Database:** PostgreSQL (Optimized for unique pointers and self-referential foreign relationships).
 
 ---
@@ -139,7 +139,7 @@ openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out private.key
 openssl pkey -in private.key -pubout -out public.key
 ```
 
-3. Run
+3. Install
 
 ```Plaintext
 export $(cat .env | xargs) && mvn clean install
