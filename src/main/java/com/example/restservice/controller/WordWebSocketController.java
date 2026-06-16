@@ -40,7 +40,7 @@ public class WordWebSocketController {
         long currentPageId = Long.parseLong(String.valueOf(payload.get("currentPageId")));
 
         Long previousWordId = payload.get("previousWordId") != null ?
-            Long.valueOf(String.valueOf(payload.get("previousWordId"))) : null;
+                Long.valueOf(String.valueOf(payload.get("previousWordId"))) : null;
         String previousLocalId = (String) payload.get("previousLocalId");
 
         // 1. Process the core database insert
@@ -51,42 +51,19 @@ public class WordWebSocketController {
                 "type", "CREATE_WORD",
                 "word", savedDatabaseWord
         );
-        // 2. CHANNEL 1: Broadcast the fresh word to the active page right away
+        // 2. Broadcast the fresh word to the active page right away
         messagingTemplate.convertAndSend("/topic/page/" + currentPageId, (Object) wordAction);
 
-        // 3. CROSS-PAGE BOUNDARY DETECTION ENGINE
-        // Fetch current page metadata boundaries to check if we modified the head or tail edges
+        // 3. REUSABLE CROSS-PAGE BOUNDARY DETECTION
         Page currentPage = pageRepository.findById(currentPageId).orElse(null);
         if (currentPage != null) {
+            Long firstWordId = currentPage.getFirstWord() != null ? currentPage.getFirstWord().getId() : null;
+            Long lastWordId = currentPage.getLastWord() != null ? currentPage.getLastWord().getId() : null;
 
-            // CRITICAL CHECK A: Did we insert at the very beginning of this page?
-            if (currentPage.getFirstWord() != null && currentPage.getFirstWord().getId().equals(savedDatabaseWord.getId())) {
-                // If this page has a previous page, we must tell that previous page to update its nextWordId link
-                long previousPageId = currentPageId - 1; // Assuming sequential sequential numerical IDs
-
-                Map<String, Object> boundaryPatch = Map.of(
-                    "type", "NEXT_PAGE_HEAD_CHANGED",
-                    "newNextWordId", savedDatabaseWord.getId()
-                );
-                // Send to Channel 2 (The Previous Page Channel)
-                messagingTemplate.convertAndSend("/topic/page/" + previousPageId, (Object) boundaryPatch);
-                System.out.println("🔄 Sent head-patch boundary ripple back to Page " + previousPageId);
-            }
-
-            // CRITICAL CHECK B: Did we append to the very end of this page?
-            if (currentPage.getLastWord() != null && currentPage.getLastWord().getId().equals(savedDatabaseWord.getId())) {
-                long nextPageId = currentPageId + 1;
-
-                Map<String, Object> boundaryPatch = Map.of(
-                    "type", "PREVIOUS_PAGE_TAIL_CHANGED",
-                    "newLastWordIdOfPreviousPage", savedDatabaseWord.getId()
-                );
-                // Send to Channel 3 (The Next Page Channel)
-                messagingTemplate.convertAndSend("/topic/page/" + nextPageId, (Object) boundaryPatch);
-                System.out.println("🔄 Sent tail-patch boundary ripple forward to Page " + nextPageId);
-            }
+            detectAndBroadcastBoundaryChanges(currentPageId, firstWordId, lastWordId);
         }
     }
+
     @MessageMapping("/delete-word")
     public void handleDeleteWordBroadcast(Map<String, Object> payload, java.security.Principal principal) {
         String username = validateAndGetUsername(principal, "a deletion");
@@ -104,8 +81,41 @@ public class WordWebSocketController {
                 "nextWord", Optional.ofNullable(nextWord)
         );
 
-        // Broadcast the update to everyone on the page
+        // 1. Broadcast the deletion update to everyone on the current page
         messagingTemplate.convertAndSend("/topic/page/" + currentPageId, (Object) deleteMessage);
+
+        // 2. REUSABLE CROSS-PAGE BOUNDARY DETECTION (Post-Deletion)
+        Page currentPage = pageRepository.findById(currentPageId).orElse(null);
+        if (currentPage != null) {
+            Long firstWordId = currentPage.getFirstWord() != null ? currentPage.getFirstWord().getId() : null;
+            Long lastWordId = currentPage.getLastWord() != null ? currentPage.getLastWord().getId() : null;
+
+            detectAndBroadcastBoundaryChanges(currentPageId, firstWordId, lastWordId);
+        }
+    }
+
+    /**
+     * Reusable engine to announce head and tail boundary modifications to adjacent pages
+     */
+    private void detectAndBroadcastBoundaryChanges(long currentPageId, Long currentFirstWordId, Long currentLastWordId) {
+        long previousPageId = currentPageId - 1;
+        long nextPageId = currentPageId + 1;
+
+        // Notify previous page about head movement
+        Map<String, Object> headBoundaryPatch = Map.of(
+                "type", "NEXT_PAGE_HEAD_CHANGED",
+                "newNextWordId", currentFirstWordId != null ? currentFirstWordId : "NULL"
+        );
+        messagingTemplate.convertAndSend("/topic/page/" + previousPageId, (Object) headBoundaryPatch);
+
+        // Notify next page about tail movement
+        Map<String, Object> tailBoundaryPatch = Map.of(
+                "type", "PREVIOUS_PAGE_TAIL_CHANGED",
+                "newLastWordIdOfPreviousPage", currentLastWordId != null ? currentLastWordId : "NULL"
+        );
+        messagingTemplate.convertAndSend("/topic/page/" + nextPageId, (Object) tailBoundaryPatch);
+
+        System.out.println("🔄 Boundary ripple updates sent for Page " + currentPageId);
     }
 
     private String validateAndGetUsername(java.security.Principal principal, String actionType) {
