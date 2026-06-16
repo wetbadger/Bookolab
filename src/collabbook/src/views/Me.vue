@@ -34,8 +34,10 @@
 import { ref, onMounted } from 'vue';
 import { useAuthStore } from '@/stores/authStore';
 import { useRouter } from 'vue-router';
+import {usePageStore} from "@/stores/pageStore.js";
 
 const authStore = useAuthStore();
+const pageStore = usePageStore();
 const router = useRouter();
 const loading = ref(true);
 
@@ -46,6 +48,7 @@ onMounted(async () => {
 
 const handleLogout = () => {
   authStore.logout();
+  pageStore.reconnectWebSocket();
   router.push('/');
 };
 </script>
