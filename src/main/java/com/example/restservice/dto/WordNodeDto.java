@@ -1,5 +1,7 @@
 package com.example.restservice.dto;
 
+import com.example.restservice.model.Word;
+
 public class WordNodeDto {
     private Long id;
     private String content;

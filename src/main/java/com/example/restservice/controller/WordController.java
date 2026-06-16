@@ -59,8 +59,10 @@ public class WordController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteWord(@PathVariable Long id) {
-        wordService.deleteWord(id);
+    public ResponseEntity<Void> deleteWord(@PathVariable Long id,
+                                           @RequestParam(required = true) Long currentPageId,
+                                           @RequestParam(required = false) String authorName) {
+        wordService.deleteWord(id, currentPageId, authorName);
         return ResponseEntity.noContent().build();
     }
 }

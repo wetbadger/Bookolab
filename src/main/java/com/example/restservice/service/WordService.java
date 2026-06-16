@@ -1,6 +1,8 @@
 package com.example.restservice.service;
 
+import com.example.restservice.dto.DeletionResult;
 import com.example.restservice.dto.FlatLinkedWordDto;
+import com.example.restservice.dto.WordNodeDto;
 import com.example.restservice.enums.ReactionType;
 import com.example.restservice.model.Word;
 import com.example.restservice.model.Page;
@@ -179,12 +181,28 @@ public class WordService {
     }
 
     @Transactional
-    public void deleteWord(Long id) {
+    public DeletionResult deleteWord(Long id, Long currentPageId, String authorName) {
         Word wordToDelete = wordRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Word not found"));
 
         Word nextWord = wordToDelete.getNextWord();
         Word previousWord = wordRepository.findByNextWord(wordToDelete).orElse(null);
+
+        // Safely extract IDs, defaulting to null if the object is null
+        Long previousId = (previousWord != null) ? previousWord.getId() : null;
+
+        // Unless we are the last word of the current page, set the next word DTO
+        WordNodeDto nextWordNodeDto = null;
+        Page nextPage = pageRepository.findById(currentPageId + 1).orElse(null);
+        // Only check the first word if nextPage actually exists
+        if (nextPage != null && !nextPage.getFirstWord().equals(nextWord)) {
+            nextWordNodeDto = new WordNodeDto(
+                    nextWord.getId(),
+                    nextWord.getContent(),
+                    authorName);
+        }
+
+        DeletionResult result = new DeletionResult(previousId, nextWordNodeDto);
 
         patchPageBoundaries(wordToDelete, previousWord, nextWord);
 
@@ -196,6 +214,7 @@ public class WordService {
         wordToDelete.setNextWord(null);
         wordRepository.saveAndFlush(wordToDelete);
         wordRepository.delete(wordToDelete);
+        return result;
     }
 
     private void patchPageBoundaries(Word wordToDelete, @Nullable Word previousWord, @Nullable Word nextWord) {

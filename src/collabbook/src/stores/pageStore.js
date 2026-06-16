@@ -59,11 +59,15 @@ export const usePageStore = defineStore('pageStore', {
         console.log("🔥 Incoming WebSocket payload caught:", inboundPayload);
 
         // Check if the payload is a cross-page boundary patch command
-        if (inboundPayload.type) {
+        if (inboundPayload.type === "PREVIOUS_PAGE_TAIL_CHANGED" ||
+            inboundPayload.type === "NEXT_PAGE_HEAD_CHANGED") {
           this.handleCrossPageBoundaryPatch(inboundPayload);
         } else {
           // Otherwise, it's a standard word item for this page!
-          this.insertWordIntoRecords(inboundPayload);
+          if (inboundPayload.type === "CREATE_WORD")
+            this.insertWordIntoRecords(inboundPayload.word);
+          else if (inboundPayload.type === "DELETE_WORD")
+            this.deleteWordFromRecords(inboundPayload);
         }
       });
 
@@ -205,6 +209,27 @@ export const usePageStore = defineStore('pageStore', {
           const oldNext = current.nextWord;
           current.nextWord = newNode;
           newNode.nextWord = oldNext;
+          break;
+        }
+        current = current.nextWord;
+      }
+    },
+
+    deleteWordFromRecords(payload) {
+      if (!this.records) return;
+
+      console.log(payload);
+
+      let previousWordId = payload.previousWordId;
+      let nextWord = payload.nextWord;
+
+      let current = this.records.firstWord;
+      while (current) {
+        if (current.id === previousWordId) {
+          const temp = current?.nextWord?.nextWord;
+          console.log(temp);
+          current.nextWord = nextWord;
+          nextWord.nextWord = temp?.nextWord;
           break;
         }
         current = current.nextWord;

@@ -1,5 +1,7 @@
 package com.example.restservice.controller;
 
+import com.example.restservice.dto.DeletionResult;
+import com.example.restservice.dto.WordNodeDto;
 import com.example.restservice.model.Word;
 import com.example.restservice.repository.AuthorRepository;
 import com.example.restservice.service.WordService;
@@ -36,28 +38,32 @@ public class WordWebSocketController {
         String content = (String) payload.get("content");
         String localId = (String) payload.get("localId");
         long currentPageId = Long.parseLong(String.valueOf(payload.get("currentPageId")));
-        
-        Long previousWordId = payload.get("previousWordId") != null ? 
+
+        Long previousWordId = payload.get("previousWordId") != null ?
             Long.valueOf(String.valueOf(payload.get("previousWordId"))) : null;
         String previousLocalId = (String) payload.get("previousLocalId");
 
         // 1. Process the core database insert
         Word transientWord = new Word(content, localId);
         Word savedDatabaseWord = wordService.createWord(transientWord, currentPageId, localId, previousWordId, previousLocalId, username);
-        
+
+        Map<String, Object> wordAction = Map.of(
+                "type", "CREATE_WORD",
+                "word", savedDatabaseWord
+        );
         // 2. CHANNEL 1: Broadcast the fresh word to the active page right away
-        messagingTemplate.convertAndSend("/topic/page/" + currentPageId, savedDatabaseWord);
+        messagingTemplate.convertAndSend("/topic/page/" + currentPageId, (Object) wordAction);
 
         // 3. CROSS-PAGE BOUNDARY DETECTION ENGINE
         // Fetch current page metadata boundaries to check if we modified the head or tail edges
         Page currentPage = pageRepository.findById(currentPageId).orElse(null);
         if (currentPage != null) {
-            
+
             // CRITICAL CHECK A: Did we insert at the very beginning of this page?
             if (currentPage.getFirstWord() != null && currentPage.getFirstWord().getId().equals(savedDatabaseWord.getId())) {
                 // If this page has a previous page, we must tell that previous page to update its nextWordId link
                 long previousPageId = currentPageId - 1; // Assuming sequential sequential numerical IDs
-                
+
                 Map<String, Object> boundaryPatch = Map.of(
                     "type", "NEXT_PAGE_HEAD_CHANGED",
                     "newNextWordId", savedDatabaseWord.getId()
@@ -70,7 +76,7 @@ public class WordWebSocketController {
             // CRITICAL CHECK B: Did we append to the very end of this page?
             if (currentPage.getLastWord() != null && currentPage.getLastWord().getId().equals(savedDatabaseWord.getId())) {
                 long nextPageId = currentPageId + 1;
-                
+
                 Map<String, Object> boundaryPatch = Map.of(
                     "type", "PREVIOUS_PAGE_TAIL_CHANGED",
                     "newLastWordIdOfPreviousPage", savedDatabaseWord.getId()
@@ -84,8 +90,22 @@ public class WordWebSocketController {
     @MessageMapping("/delete-word")
     public void handleDeleteWordBroadcast(Map<String, Object> payload, java.security.Principal principal) {
         String username = validateAndGetUsername(principal, "a deletion");
-        System.out.println(username);
-        System.out.println(payload);
+        long wordId = Long.parseLong(String.valueOf(payload.get("wordId")));
+        long currentPageId = Long.parseLong(String.valueOf(payload.get("currentPageId")));
+
+        DeletionResult result = wordService.deleteWord(wordId, currentPageId, username);
+
+        Long prevWordId = result.getPreviousWordId();
+        WordNodeDto nextWord = result.getNextWord();
+
+        Map<String, Object> deleteMessage = Map.of(
+                "type", "DELETE_WORD",
+                "previousWordId", prevWordId,
+                "nextWord", Optional.ofNullable(nextWord)
+        );
+
+        // Broadcast the update to everyone on the page
+        messagingTemplate.convertAndSend("/topic/page/" + currentPageId, (Object) deleteMessage);
     }
 
     private String validateAndGetUsername(java.security.Principal principal, String actionType) {
