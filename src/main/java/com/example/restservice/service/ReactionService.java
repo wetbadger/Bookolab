@@ -25,10 +25,9 @@ public class ReactionService {
         this.wordRepository = wordRepository;
     }
 
-    @Transactional // 👈 CRITICAL: Without this, changes will rollback at the end of the WebSocket thread scope!
+    @Transactional
     public String handleReactionAndReturnAction(Long authorId, Long wordId, ReactionType newReactionType) {
 
-        // 1. Double check your repository naming syntax matches your mapping choice exactly
         var existing = reactionRepository.findByAuthorIdAndWordId(authorId, wordId);
 
         if (existing.isPresent()) {
@@ -44,10 +43,13 @@ public class ReactionService {
                 return "CHANGED";
             }
         } else {
-            // 2. Fetch direct lightweight database references
             Author author = authorRepository.findById(authorId)
                     .orElseThrow(() -> new IllegalArgumentException("Author not found: " + authorId));
             Word word = wordRepository.getReferenceById(wordId);
+
+            if (word.getAuthor() == author) {
+                return "REJECTED";
+            }
 
             Reaction reaction = new Reaction();
             reaction.setAuthor(author);

@@ -232,6 +232,18 @@ export const usePageStore = defineStore('pageStore', {
         console.error("STOMP Client disconnected. Cannot send payload.");
       }
     },
+    // Sends a structured JSON payload
+    deleteWordViaWebSocket(payload) {
+      if (this.stompClient && this.stompClient.connected) {
+        this.stompClient.publish({
+          destination: '/app/delete-word',
+          body: JSON.stringify(payload) // Map becomes standard JSON string
+        });
+        console.log("📡 Dispatched object for deletion to backend:", payload);
+      } else {
+        console.error("STOMP Client disconnected. Cannot send payload.");
+      }
+    },
 
     async fetchPage(id) {
       this.loading = true;

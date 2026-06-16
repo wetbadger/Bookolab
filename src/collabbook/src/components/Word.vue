@@ -29,21 +29,36 @@
         </div>
 
         <div class="author-info">
-          Author: <a :href="`/authors/${data.authorName || 'Anonymous'}`">{{ data.authorName || 'Anonymous' }}</a>
+          By: <a :href="`/authors/${data.authorName || 'Anonymous'}`">{{ data.authorName || 'Anonymous' }}</a>
         </div>
+        <!-- TODO: add a v-if user is admin or has enough delete credits -->
+        <!-- Show delete cost -->
+          <BButton
+            class="delete-btn"
+            @click="deleteWord"
+          >
+            <span class="delete">DELETE</span><br><span> {{ credits }} credits</span>
+          </BButton>
       </div>
     </span>
   </span>
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import {computed, ref} from 'vue';
 import { BButton, vBTooltip } from 'bootstrap-vue-next';
+import { usePageStore } from '@/stores/pageStore';
+
+const pageStore = usePageStore();
 
 const props = defineProps({
   data: { type: Object, required: true },
-  isAuthenticated: { type: Boolean, required: true }
+  isAuthenticated: { type: Boolean, required: true },
+  currentPageId: { type: Number },
+  wordId: { type: Number }
 });
+
+const credits = computed(() => props.data.likeCount - props.data.dislikeCount ); // TODO: make this based on std deviations
 
 const emit = defineEmits(['react']);
 
@@ -52,6 +67,13 @@ const isLikeActive = ref(props.data.userLiked);
 const isDislikeActive = ref(props.data.userDisliked);
 
 let clickCount = 0;
+
+const deleteWord = () => {
+  pageStore.deleteWordViaWebSocket({
+    currentPageId: props.currentPageId,
+    wordId: props.wordId
+  });
+};
 
 const toggleLike = () => {
   isLikeActive.value = !isLikeActive.value; // Simple true/false toggle
@@ -244,5 +266,21 @@ const countClicks = () => {
 .badge.active .count {
   font-weight: 800; /* Extra bold */
   color: #111827;   /* Darker text color for emphasis */
+}
+
+.delete-btn {
+  background-color: #ef4444; /* Standard red */
+  border: none;
+  color: white;
+  border-radius: 12px;
+  padding: 4px 12px;
+  cursor: pointer;
+  display: block;
+  font-size: 0.8rem;
+  width: 100%;
+}
+
+.delete-btn:hover {
+  background-color: #f87171; /* A lighter shade for hover */
 }
 </style>

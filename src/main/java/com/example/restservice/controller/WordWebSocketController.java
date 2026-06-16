@@ -12,6 +12,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Controller;
 import java.util.Map;
+import java.util.Optional;
 
 @Controller
 public class WordWebSocketController {
@@ -30,22 +31,7 @@ public class WordWebSocketController {
 
     @MessageMapping("/send-word")
     public void handleNewWordBroadcast(Map<String, Object> payload, java.security.Principal principal) throws InterruptedException {
-        if (principal == null) {
-            System.err.println("🚫 Rejected message: Unauthenticated user.");
-            return;
-        }
-
-        // Fetch the freshest data straight from the DB to see if their status changed mid-session
-        String username = principal.getName();
-        UserDetails userDetails = authorRepository.findAuthorByUsername(username)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
-
-        if (!userDetails.isEnabled()) {
-            System.err.println("🚫 Mid-session rejection: Banned user '" + username + "' attempted an edit.");
-            // Optional: You could use simpMessagingTemplate to send a private error message
-            // back to the user via "/queue/errors" telling them they've been banned.
-            return;
-        }
+        String username = validateAndGetUsername(principal, "an edit");
 
         String content = (String) payload.get("content");
         String localId = (String) payload.get("localId");
@@ -94,5 +80,29 @@ public class WordWebSocketController {
                 System.out.println("🔄 Sent tail-patch boundary ripple forward to Page " + nextPageId);
             }
         }
+    }
+    @MessageMapping("/delete-word")
+    public void handleDeleteWordBroadcast(Map<String, Object> payload, java.security.Principal principal) {
+        String username = validateAndGetUsername(principal, "a deletion");
+        System.out.println(username);
+        System.out.println(payload);
+    }
+
+    private String validateAndGetUsername(java.security.Principal principal, String actionType) {
+        if (principal == null) {
+            System.err.println("🚫 Rejected message: Unauthenticated user attempting " + actionType + ".");
+            throw new org.springframework.security.access.AccessDeniedException("User is unauthenticated.");
+        }
+
+        String username = principal.getName();
+        UserDetails userDetails = authorRepository.findAuthorByUsername(username)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
+
+        if (!userDetails.isEnabled()) {
+            System.err.println("🚫 Mid-session rejection: Banned user '" + username + "' attempted " + actionType + ".");
+            throw new org.springframework.security.access.AccessDeniedException("User account is disabled.");
+        }
+
+        return username;
     }
 }

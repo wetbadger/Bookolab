@@ -1,7 +1,9 @@
 package com.example.restservice;
 
+import com.example.restservice.model.Author;
 import com.example.restservice.model.Page;
 import com.example.restservice.model.Word;
+import com.example.restservice.repository.AuthorRepository;
 import com.example.restservice.repository.PageRepository;
 import com.example.restservice.repository.WordRepository;
 import com.example.restservice.service.WordService;
@@ -29,9 +31,13 @@ class WordTests {
     @Autowired
     private PageRepository pageRepository;
 
+    @Autowired
+    private AuthorRepository authorRepository;
+
     private Word wordA;
     private Word wordC;
     private Page testPage = new Page();
+    private Author testAuthor = new Author("Test", "password");
 
     // Helper method to instantiate words cleanly with required localId fields
     private Word createTestWord(String content) {
@@ -45,6 +51,9 @@ class WordTests {
         // Clear repositories to ensure a pristine state for every test execution
         pageRepository.deleteAll();
         wordRepository.deleteAll();
+        authorRepository.deleteAll();
+
+        authorRepository.save(testAuthor);
 
         // Build a baseline linked list chain: Page -> [A] -> [C]
         wordA = wordRepository.save(createTestWord("WordA"));
@@ -65,7 +74,7 @@ class WordTests {
         Word wordB = createTestWord("WordB");
 
         // Act: Create WordB pointing to WordA as its previous anchor
-        Word savedB = wordService.createWord(wordB, testPage.getId(), "abc123", wordA.getId(), null, "Test");
+        Word savedB = wordService.createWord(wordB, testPage.getId(), "abc123", wordA.getId(), null, testAuthor.getUsername());
 
         // Assert: Verify WordB stole WordA's old next pointer (WordC)
         assertNotNull(savedB.getId());
@@ -81,7 +90,7 @@ class WordTests {
     @Test
     void testCreateWord_NoPreviousId_CreatesIsolatedOrHeadNode() {
         // Act: Create a standalone word with no previous reference (Prepends to Page 1)
-        Word standalone = wordService.createWord(createTestWord("Standalone"), testPage.getId(), "456def",  null, null, "Test");
+        Word standalone = wordService.createWord(createTestWord("Standalone"), testPage.getId(), "456def",  null, null, testAuthor.getUsername());
 
         // Assert: Verify it saved cleanly
         assertNotNull(standalone.getId());
@@ -98,7 +107,7 @@ class WordTests {
     @Test
     void testDeleteWord_MiddleNode_TightensChain() {
         // Arrange: Insert WordB to establish an [A] -> [B] -> [C] sequence
-        Word wordB = wordService.createWord(createTestWord("WordB"), testPage.getId(), "789ghi", wordA.getId(), null, "Test");
+        Word wordB = wordService.createWord(createTestWord("WordB"), testPage.getId(), "789ghi", wordA.getId(), null, testAuthor.getUsername());
 
         // Act: Delete the middleman (WordB)
         wordService.deleteWord(wordB.getId());

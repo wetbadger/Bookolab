@@ -77,7 +77,7 @@ public class ReactionWebSocketController {
 
             System.out.println("🔄 Reaction CHANGED. Dual broadcast sent for Word ID " + wordId);
 
-        } else {
+        } else if (!"REJECTED".equals(actionTaken)) {
             // Standard flow for "ADDED" or "REMOVED"
             long freshCount = reactionRepository.countByWordIdAndReactionType(wordId, incomingType);
             ReactionUpdateEvent event = new ReactionUpdateEvent(wordId, incomingType, freshCount, actionTaken);

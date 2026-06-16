@@ -35,6 +35,7 @@
         :previous="lastWordIdOfPreviousPage ? Number(lastWordIdOfPreviousPage) : null"
         :next="typeof firstWord?.id === 'number' ? firstWord.id : null"
         :previousLocalId="null"
+        :currentPageId="props.id"
         @submit="(data) => handleWordSubmit(data, 0)"
       />
     </span>
@@ -45,6 +46,8 @@
           :data="word"
           @react="sendReactionToWebSocket"
           :isAuthenticated="isAuthenticated"
+          :currentPageId="props.id"
+          :wordId="word.id"
         />
       </span>
 
@@ -54,6 +57,7 @@
           :previous="typeof word.id === 'number' ? word.id : null"
           :next="typeof displayedWords[index + 1]?.id === 'number' ? displayedWords[index + 1].id : null"
           :previousLocalId="word.localId"
+          :currentPageId="props.id"
           @submit="(data) => handleWordSubmit(data, index + 1)"
         />
       </span>

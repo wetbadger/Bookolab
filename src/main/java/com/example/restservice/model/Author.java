@@ -1,9 +1,7 @@
 package com.example.restservice.model;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.Id;
+import com.example.restservice.enums.Role;
+import jakarta.persistence.*;
 import org.jspecify.annotations.Nullable;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -30,6 +28,9 @@ public class Author implements UserDetails {
     private boolean enabled;
     // private String verificationCode;
     // private LocalDateTime verificationCodeExpiresAt;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Role role = Role.USER; // Default to USER for safety
 
     public Author(String username, String password) {
         this.username = username;
@@ -55,9 +56,11 @@ public class Author implements UserDetails {
         return password;
     }
 
+    // Dynamic authorities based on the user's assigned role
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of(new SimpleGrantedAuthority("ROLE_USER"));
+        // Spring Security expects roles to start with "ROLE_"
+        return List.of(new SimpleGrantedAuthority("ROLE_" + this.role.name()));
     }
 
     @Override
@@ -90,4 +93,6 @@ public class Author implements UserDetails {
     // Add standard getters/setters for it at the bottom:
     public LocalDateTime getBannedUntil() { return bannedUntil; }
     public void setBannedUntil(LocalDateTime bannedUntil) { this.bannedUntil = bannedUntil; }
+    public Role getRole() { return role; }
+    public void setRole(Role role) { this.role = role; }
 }
