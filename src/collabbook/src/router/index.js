@@ -17,7 +17,7 @@ const routes = [
     name: 'page-view',
     component: Page,
     // Passes the URL id as a prop, and sets edit mode to false
-    props: route => ({ id: route.params.id, isEditMode: false, isDebugMode: isDebugMode })
+    props: route => ({ id: Number(route.params.id), isEditMode: false, isDebugMode: isDebugMode })
   },
   {
     path: '/pages/:id/edit',

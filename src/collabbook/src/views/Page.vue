@@ -77,7 +77,7 @@ import Profile from '@/components/Profile.vue';
 import Paginator from "@/components/Pagenator.vue";
 
 const props = defineProps({
-  id: { type: String, required: true },
+  id: { type: Number, required: true },
   isEditMode: { type: Boolean, default: false },
   isDebugMode: { type: Boolean, default: false }
 });
