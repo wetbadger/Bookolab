@@ -10,3 +10,6 @@ Truncate the pages every 10 minutes
 Delete words
 Rate limit accounts
 Limit number of accounts per ip
+
+Bugs:
+Anonymous users can't see site changes without a session token.
