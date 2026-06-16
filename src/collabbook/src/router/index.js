@@ -24,7 +24,7 @@ const routes = [
     name: 'page-edit',
     component: Page,
     // Passes the URL id as a prop, and sets edit mode to true
-    props: route => ({ id: route.params.id, isEditMode: true, isDebugMode: isDebugMode }),
+    props: route => ({ id: Number(route.params.id), isEditMode: true, isDebugMode: isDebugMode }),
     meta: { requiresAuth: true }
   },
   {
