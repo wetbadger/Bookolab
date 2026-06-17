@@ -1,6 +1,8 @@
 package com.example.restservice.controller;
 
+import com.example.restservice.dto.AuthorDto;
 import com.example.restservice.model.Author;
+import com.example.restservice.repository.ReactionRepository;
 import com.example.restservice.service.AuthorService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -15,16 +17,22 @@ import java.util.List;
 @RequestMapping("/authors")
 @RestController
 public class AuthorController {
+    private final ReactionRepository reactionRepository;
     private final AuthorService authorService;
-    public AuthorController(AuthorService authorService) {
+    public AuthorController(ReactionRepository reactionRepository, AuthorService authorService)
+    {
+        this.reactionRepository = reactionRepository;
         this.authorService = authorService;
     }
 
     @GetMapping("/me")
-    public ResponseEntity<Author> authenticatedAuthor() {
+    public ResponseEntity<AuthorDto> authenticatedAuthor() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         Author currentAuthor = (Author) authentication.getPrincipal();
-        return ResponseEntity.ok(currentAuthor);
+        AuthorDto currentAuthorDto = new AuthorDto(currentAuthor.getUsername());
+        currentAuthorDto.setScore(reactionRepository.countLikesMinusDislikes(currentAuthor.getId()));
+        currentAuthorDto.setCreditsSpent(currentAuthor.getCreditsSpent());
+        return ResponseEntity.ok(currentAuthorDto);
     }
 
     @GetMapping("/")

@@ -18,9 +18,9 @@
       </div>
 
       <div class="profile-details">
-        <p><strong>Author ID:</strong> {{ authStore.user.id }}</p>
         <p><strong>Username:</strong> {{ authStore.user.username }}</p>
-        <p><strong>Role:</strong> {{ authStore.user.role }}</p>
+        <p><strong>Score:</strong> {{ authStore.user.score }}</p>
+        <p><strong>Credits spent:</strong> {{ authStore.user.creditsSpent }}</p>
       </div>
 
       <button @click="handleLogout" class="btn btn-danger">
