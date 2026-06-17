@@ -32,6 +32,9 @@ public class Author implements UserDetails {
     @Column(nullable = false)
     private Role role = Role.USER; // Default to USER for safety
 
+    @Column(nullable = false, columnDefinition = "bigint default 0")
+    private Long creditsSpent = 0L;
+
     public Author(String username, String password) {
         this.username = username;
         this.password = password;
@@ -95,4 +98,16 @@ public class Author implements UserDetails {
     public void setBannedUntil(LocalDateTime bannedUntil) { this.bannedUntil = bannedUntil; }
     public Role getRole() { return role; }
     public void setRole(Role role) { this.role = role; }
+
+    public Long getCreditsSpent() {
+        return creditsSpent;
+    }
+
+    public void setCreditsSpent(Long creditsSpent) {
+        this.creditsSpent = creditsSpent;
+    }
+
+    public void incrementCreditsSpent(Long amt) {
+        creditsSpent += amt;
+    }
 }

@@ -33,4 +33,15 @@ public interface ReactionRepository extends JpaRepository<Reaction, Long> {
             @Param("wordIds") List<Long> wordIds,
             @Param("reactionType") ReactionType reactionType
     );
+
+    /**
+     * Calculates the net reputation score (Likes minus Dislikes)
+     * received by a specific author across all their words.
+     */
+    @Query("SELECT COALESCE(SUM(CASE WHEN r.reactionType = com.example.restservice.enums.ReactionType.LIKE THEN 1 " +
+            "                         WHEN r.reactionType = com.example.restservice.enums.ReactionType.DISLIKE THEN -1 " +
+            "                         ELSE 0 END), 0) " +
+            "FROM Reaction r " +
+            "WHERE r.word.author.id = :authorId")
+    long countLikesMinusDislikes(@Param("authorId") Long authorId);
 }

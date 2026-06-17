@@ -4,6 +4,7 @@ import com.example.restservice.dto.DeletionResult;
 import com.example.restservice.dto.FlatLinkedWordDto;
 import com.example.restservice.dto.WordNodeDto;
 import com.example.restservice.enums.ReactionType;
+import com.example.restservice.model.Author;
 import com.example.restservice.model.Word;
 import com.example.restservice.model.Page;
 import com.example.restservice.repository.AuthorRepository;
@@ -185,6 +186,19 @@ public class WordService {
         Word wordToDelete = wordRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Word not found"));
 
+        Author author = authorRepository.findAuthorByUsername(authorName)
+                .orElseThrow(() -> new UsernameNotFoundException("Author not found"));
+
+        Long likes = reactionRepository.countByWordIdAndReactionType(id, ReactionType.LIKE);
+        Long dislikes = reactionRepository.countByWordIdAndReactionType(id, ReactionType.DISLIKE);
+
+        long creditsRequired = likes - dislikes;
+
+        if (!hasEnoughDeleteCredits(author, creditsRequired)) {
+            System.out.println("\uD83D\uDEAB User does not have enough delete credits.");
+            return new DeletionResult(null, null);
+        }
+
         Word nextWord = wordToDelete.getNextWord();
         Word previousWord = wordRepository.findByNextWord(wordToDelete).orElse(null);
 
@@ -214,6 +228,9 @@ public class WordService {
         wordToDelete.setNextWord(null);
         wordRepository.saveAndFlush(wordToDelete);
         wordRepository.delete(wordToDelete);
+
+        author.incrementCreditsSpent(creditsRequired);
+        authorRepository.save(author);
         return result;
     }
 
@@ -234,5 +251,10 @@ public class WordService {
             page.setLastWord(previousWord);
             pageRepository.save(page);
         });
+    }
+
+    public boolean hasEnoughDeleteCredits(Author author, Long creditsRequired) {
+        System.out.println(author.getUsername() + " spent " + author.getCreditsSpent() + " credits.");
+        return reactionRepository.countLikesMinusDislikes(author.getId()) - author.getCreditsSpent() >= creditsRequired;
     }
 }

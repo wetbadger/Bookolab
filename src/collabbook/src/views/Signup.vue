@@ -44,9 +44,11 @@
 <script setup>
 import { ref, reactive } from 'vue';
 import { useAuthStore } from '@/stores/authStore';
-import { useRouter, useRoute } from 'vue-router'; // 1. Added useRoute here
+import { useRouter, useRoute } from 'vue-router';
+import {usePageStore} from "@/stores/pageStore.js"; // 1. Added useRoute here
 
 const authStore = useAuthStore();
+const pageStore = usePageStore();
 const router = useRouter();
 const route = useRoute(); // 2. Initialized route hook
 
@@ -66,6 +68,7 @@ const handleSignup = async () => {
     // Automatically attempt log in
     const loginSuccess = await authStore.login({ ...form });
     if (loginSuccess) {
+      pageStore.reconnectWebSocket();
       // 3. Implemented the redirect functionality exactly like Login.vue
       const redirectTo = route.query.redirectFrom || '/';
       router.push(redirectTo);

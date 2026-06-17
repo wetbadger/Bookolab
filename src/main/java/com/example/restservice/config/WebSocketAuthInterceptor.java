@@ -71,6 +71,7 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
                                     }
                                 } catch (org.springframework.security.core.userdetails.UsernameNotFoundException ue) {
                                     System.err.println("⚠️ Token valid, but user '" + username + "' no longer exists in DB. Proceeding as Guest.");
+                                    setAnonymousUser(accessor);
                                 }
                             }
                         } catch (ExpiredJwtException e) {
