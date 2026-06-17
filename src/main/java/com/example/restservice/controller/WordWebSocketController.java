@@ -101,6 +101,22 @@ public class WordWebSocketController {
         long previousPageId = currentPageId - 1;
         long nextPageId = currentPageId + 1;
 
+        Page previousPage = pageRepository.findById(previousPageId).orElse(null);
+        Page nextPage = pageRepository.findById(nextPageId).orElse(null);
+
+        while (previousPage != null && previousPage.getFirstWord() == null) {
+            previousPage = pageRepository.findById(previousPageId - 1).orElse(null);
+        }
+
+        while (nextPage != null && nextPage.getFirstWord() == null) {
+            nextPage = pageRepository.findById(nextPageId + 1).orElse(null);
+        }
+
+        if (previousPage != null)
+            previousPageId = previousPage.getId();
+        if (nextPage != null)
+            nextPageId = nextPage.getId();
+
         // Notify previous page about head movement
         Map<String, Object> headBoundaryPatch = Map.of(
                 "type", "NEXT_PAGE_HEAD_CHANGED",
