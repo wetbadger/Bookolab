@@ -107,94 +107,106 @@ public class PageService {
         Word currentEntity = page.getFirstWord();
         Word lastEntity = page.getLastWord();
         Long lastWordIdOfPreviousPage = null;
+        WordNodeDto headDto = null;
+        FlatLinkedWordDto flatLastWord = null;
 
-        if (currentEntity == null || lastEntity == null) {
-            return new BoundedPageResponse(page.getId(), null, null, null);
-        }
+        if (currentEntity != null && lastEntity != null) {
+            // 1. Create the head of our JSON tree
+            String headAuthor = currentEntity.getAuthor() != null ? currentEntity.getAuthor().getUsername() : "Anonymous";
+            headDto = new WordNodeDto(currentEntity.getId(), currentEntity.getContent(), headAuthor);
+            WordNodeDto currentDto = headDto;
 
-        // 1. Create the head of our JSON tree
-        String headAuthor = currentEntity.getAuthor() != null ? currentEntity.getAuthor().getUsername() : "Anonymous";
-        WordNodeDto headDto = new WordNodeDto(currentEntity.getId(), currentEntity.getContent(), headAuthor);
-        WordNodeDto currentDto = headDto;
+            // Keep a list of all Node DTOs we generate so we can enrich them in batch later
+            List<WordNodeDto> allDtosOnPage = new java.util.ArrayList<>();
+            allDtosOnPage.add(headDto);
 
-        // Keep a list of all Node DTOs we generate so we can enrich them in batch later
-        List<WordNodeDto> allDtosOnPage = new java.util.ArrayList<>();
-        allDtosOnPage.add(headDto);
+            // 2. Loop through the linked list until we process the last word of THIS page
+            while (currentEntity != null) {
+                if (currentEntity.getId().equals(lastEntity.getId())) {
+                    break;
+                }
 
-        // 2. Loop through the linked list until we process the last word of THIS page
-        while (currentEntity != null) {
-            if (currentEntity.getId().equals(lastEntity.getId())) {
-                break;
+                currentEntity = currentEntity.getNextWord();
+
+                if (currentEntity != null) {
+                    String currentAuthor = currentEntity.getAuthor() != null ? currentEntity.getAuthor().getUsername() : "Anonymous";
+                    WordNodeDto nextDto = new WordNodeDto(currentEntity.getId(), currentEntity.getContent(), currentAuthor);
+                    currentDto.setNextWord(nextDto);
+                    currentDto = nextDto;
+                    allDtosOnPage.add(nextDto); // 👈 Track every node built
+                }
             }
 
-            currentEntity = currentEntity.getNextWord();
 
-            if (currentEntity != null) {
-                String currentAuthor = currentEntity.getAuthor() != null ? currentEntity.getAuthor().getUsername() : "Anonymous";
-                WordNodeDto nextDto = new WordNodeDto(currentEntity.getId(), currentEntity.getContent(), currentAuthor);
-                currentDto.setNextWord(nextDto);
-                currentDto = nextDto;
-                allDtosOnPage.add(nextDto); // 👈 Track every node built
+            // Batch-enrich all generated word DTO nodes with their reaction stats
+            if (!allDtosOnPage.isEmpty()) {
+                List<Long> wordIdsList = allDtosOnPage.stream().map(WordNodeDto::getId).toList();
+                List<Map<String, Object>> rawCounts = reactionRepository.getReactionCountsForWords(wordIdsList);
+
+                // Define lookups with wider scope so the loop can safely read them
+                java.util.Set<Long> likedWordIdsSet = java.util.Collections.emptySet();
+                java.util.Set<Long> dislikedWordIdsSet = java.util.Collections.emptySet();
+
+                if (author != null) {
+                    // Fetching the user's personal interactions
+                    likedWordIdsSet = new java.util.HashSet<>(
+                            reactionRepository.findWordIdsReactedByUser(author.getId(), wordIdsList, ReactionType.LIKE)
+                    );
+                    dislikedWordIdsSet = new java.util.HashSet<>(
+                            reactionRepository.findWordIdsReactedByUser(author.getId(), wordIdsList, ReactionType.DISLIKE)
+                    );
+                }
+
+                for (WordNodeDto dto : allDtosOnPage) {
+                    long likes = rawCounts.stream()
+                            .filter(m -> m.get("wordId").equals(dto.getId()) && m.get("type") == com.example.restservice.enums.ReactionType.LIKE)
+                            .mapToLong(m -> (Long) m.get("cnt")).findFirst().orElse(0L);
+
+                    long dislikes = rawCounts.stream()
+                            .filter(m -> m.get("wordId").equals(dto.getId()) && m.get("type") == com.example.restservice.enums.ReactionType.DISLIKE)
+                            .mapToLong(m -> (Long) m.get("cnt")).findFirst().orElse(0L);
+
+                    dto.setLikeCount(likes);
+                    dto.setDislikeCount(dislikes);
+
+                    // Set the boolean states using O(1) set lookups
+                    dto.setUserLiked(likedWordIdsSet.contains(dto.getId()));
+                    dto.setUserDisliked(dislikedWordIdsSet.contains(dto.getId()));
+                }
             }
-        }
 
-        // 🚀 NEW STEP: Batch-enrich all generated word DTO nodes with their reaction stats
-        // 🚀 NEW STEP: Batch-enrich all generated word DTO nodes with their reaction stats
-        if (!allDtosOnPage.isEmpty()) {
-            List<Long> wordIdsList = allDtosOnPage.stream().map(WordNodeDto::getId).toList();
-            List<Map<String, Object>> rawCounts = reactionRepository.getReactionCountsForWords(wordIdsList);
+            // 3. Map lastEntity directly to a flat DTO representation
+            Long nextId = (lastEntity.getNextWord() != null) ? lastEntity.getNextWord().getId() : null;
+            Long previousWordId = wordRepository.findByNextWord(currentEntity)
+                    .map(Word::getId)
+                    .orElse(null);
+            flatLastWord = new FlatLinkedWordDto(lastEntity.getId(), lastEntity.getContent(), nextId, previousWordId);
 
-            // Define lookups with wider scope so the loop can safely read them
-            java.util.Set<Long> likedWordIdsSet = java.util.Collections.emptySet();
-            java.util.Set<Long> dislikedWordIdsSet = java.util.Collections.emptySet();
-
-            if (author != null) {
-                // Fetching the user's personal interactions
-                likedWordIdsSet = new java.util.HashSet<>(
-                        reactionRepository.findWordIdsReactedByUser(author.getId(), wordIdsList, ReactionType.LIKE)
-                );
-                dislikedWordIdsSet = new java.util.HashSet<>(
-                        reactionRepository.findWordIdsReactedByUser(author.getId(), wordIdsList, ReactionType.DISLIKE)
-                );
+            // Enforce counts on the standalone flatLastWord DTO as well
+            if (flatLastWord != null) {
+                flatLastWord.setLikeCount(reactionRepository.countByWordIdAndReactionType(lastEntity.getId(), com.example.restservice.enums.ReactionType.LIKE));
+                flatLastWord.setDislikeCount(reactionRepository.countByWordIdAndReactionType(lastEntity.getId(), com.example.restservice.enums.ReactionType.DISLIKE));
             }
-
-            for (WordNodeDto dto : allDtosOnPage) {
-                long likes = rawCounts.stream()
-                        .filter(m -> m.get("wordId").equals(dto.getId()) && m.get("type") == com.example.restservice.enums.ReactionType.LIKE)
-                        .mapToLong(m -> (Long) m.get("cnt")).findFirst().orElse(0L);
-
-                long dislikes = rawCounts.stream()
-                        .filter(m -> m.get("wordId").equals(dto.getId()) && m.get("type") == com.example.restservice.enums.ReactionType.DISLIKE)
-                        .mapToLong(m -> (Long) m.get("cnt")).findFirst().orElse(0L);
-
-                dto.setLikeCount(likes);
-                dto.setDislikeCount(dislikes);
-
-                // Set the boolean states using O(1) set lookups
-                dto.setUserLiked(likedWordIdsSet.contains(dto.getId()));
-                dto.setUserDisliked(dislikedWordIdsSet.contains(dto.getId()));
-            }
-        }
-
-        // 3. Map lastEntity directly to a flat DTO representation
-        Long nextId = (lastEntity.getNextWord() != null) ? lastEntity.getNextWord().getId() : null;
-        Long previousWordId = wordRepository.findByNextWord(currentEntity)
-                .map(Word::getId)
-                .orElse(null);
-        FlatLinkedWordDto flatLastWord = new FlatLinkedWordDto(lastEntity.getId(), lastEntity.getContent(), nextId, previousWordId);
-
-        // 🚀 Enforce counts on the standalone flatLastWord DTO as well
-        if (flatLastWord != null) {
-            flatLastWord.setLikeCount(reactionRepository.countByWordIdAndReactionType(lastEntity.getId(), com.example.restservice.enums.ReactionType.LIKE));
-            flatLastWord.setDislikeCount(reactionRepository.countByWordIdAndReactionType(lastEntity.getId(), com.example.restservice.enums.ReactionType.DISLIKE));
         }
 
         // 4. Get the last word id of the previous page.
         if (id > 1) {
-            lastWordIdOfPreviousPage = pageRepository.findById(id - 1)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Page not found"))
-                    .getLastWord()
-                    .getId();
+            Page previousPage = pageRepository.findById(id - 1)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Page not found"));
+
+            Word lastWordOfPreviousPage = previousPage.getLastWord();
+
+            // The previous page may be empty if someone deleted all the words on it
+            // In that case, we look for the first populated previous page.
+            int i = 2;
+            while (lastWordOfPreviousPage == null && id - i >= 0) {
+                previousPage = pageRepository.findById(id - i)
+                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Page not found"));
+                lastWordOfPreviousPage = previousPage.getLastWord();
+                i += 1;
+            }
+            if (lastWordOfPreviousPage != null)
+                lastWordIdOfPreviousPage = lastWordOfPreviousPage.getId();
         }
 
         return new BoundedPageResponse(page.getId(), headDto, flatLastWord, lastWordIdOfPreviousPage);
