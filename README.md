@@ -157,9 +157,23 @@ openssl pkey -in private.key -pubout -out public.key
 
 5. Install
 
+Linux or mac:
 ```Plaintext
 export $(cat .env | xargs) && mvn clean install
 ```
+Windows:
+```
+Get-Content .env | Foreach-Object {
+    if ($_ -match '^[a-zA-Z_][a-zA-Z0-9_]*=') {                                                                                                  
+        $name, $value = $_ -split '=', 2                                                                                                         
+        [System.Environment]::SetEnvironmentVariable($name, $value, "Process")                                                                   
+    }                                                                                                                                            
+}
+```
+```Plaintext
+mvn clean install
+```
+
 
 5. Run
 

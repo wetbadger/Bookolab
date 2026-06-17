@@ -117,7 +117,6 @@ public class WordService {
 
         // 2. Splice into mid-chain or end-chain if an anchor was found
         if (previousWord != null) {
-            System.out.println("Previous word: " + previousWord.getContent());
             // Cache the next word link so we don't lose it
             Word nextWordAnchor = previousWord.getNextWord();
             // Sever the link on the previous word immediately to free up the unique constraint
@@ -156,8 +155,7 @@ public class WordService {
             return savedWord;
         }
 
-        // 3. Fallback: If both qualifiers are null, prepend/prepend-isolated to the specified page
-// 3. Fallback: If both qualifiers are null, prepend to the specified page
+        // 3. Fallback: If both qualifiers are null, prepend to the specified page
         Page targetPage = pageRepository.findById(currentPageId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Target page not found"));
 
@@ -187,7 +185,7 @@ public class WordService {
 
         Word savedWord = wordRepository.saveAndFlush(newWord);
 
-// If the page was empty, this new word is also the last word
+        // If the page was empty, this new word is also the last word
         if (targetPage.getFirstWord() == null) {
             targetPage.setLastWord(savedWord);
         }
