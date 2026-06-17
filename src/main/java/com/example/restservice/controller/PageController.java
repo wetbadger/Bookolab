@@ -72,6 +72,7 @@ public class PageController {
     @GetMapping("/api/words/{wordId}/page")
     public ResponseEntity<Map<String, Long>> getWordPageLocation(@PathVariable Long wordId) {
         Long pageId = pageService.findWordPageLocation(wordId);
+        System.out.println("Word " + Long.toString(wordId) + " found on page: " + Long.toString(pageId));
         return ResponseEntity.ok(Map.of("pageId", pageId));
     }
 }

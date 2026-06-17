@@ -86,8 +86,6 @@ const focusInnerInput = () => {
   });
 };
 
-defineExpose({ focusInnerInput });
-
 const submitWord = () => {
   const trimmedWord = newWord.value.trim();
   if (!trimmedWord) { cancelEditing(); return; }
@@ -128,6 +126,12 @@ onMounted(() => {
   if (props.isEditing) {
     localId = pageStore.generateSimpleId();
   }
+});
+
+defineExpose({
+  focusInnerInput,
+  isComponentEditing,
+  previous: props.previous
 });
 </script>
 

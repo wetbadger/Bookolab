@@ -255,10 +255,14 @@ watch(
 
     for (const key in plusRefs.value) {
       const plusInstance = plusRefs.value[key];
+
       // Check if this specific input is actively open and focused
+      // !!! isComponentEditing is never true!!!
+      console.log(plusInstance.isComponentEditing);
       if (plusInstance && plusInstance.isComponentEditing) {
         // Grab the anchor word ID this edit box was sitting behind
         activelyEditingWordId = plusInstance.previous;
+        console.log(activelyEditingWordId);
         break;
       }
     }
@@ -275,6 +279,7 @@ watch(
       const stillOnCurrentPage = pageStore.findWordInRecords(activelyEditingWordId);
 
       if (!stillOnCurrentPage) {
+        console.log("YEET YEET");
         // If it's missing, let's ask the backend or use an API utility to find where it went.
         // As a highly performant fallback alternative: loop scan or issue a lightweight
         // GET /api/words/{id}/page-location endpoint to grab the fresh page number.
