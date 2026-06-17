@@ -19,6 +19,8 @@ export const usePageStore = defineStore('pageStore', {
     currentReactionsSubscription: null,
     onRemoteWordAddedCallback: null,
     totalPages: 1,
+    truncationEventTrigger: 0,
+    globalUpdatesSubscription: null,
     globalCounter: 0 // TODO: use for id generation
   }),
   actions: {
@@ -48,22 +50,34 @@ export const usePageStore = defineStore('pageStore', {
         if (this.records?.id) {
           this.subscribeToPageTopic(this.records.id);
         }
+        // 🚀 SUBSCRIBE TO GLOBAL STRUCTURAL UPDATES
+        if (!this.globalUpdatesSubscription) {
+          this.globalUpdatesSubscription = this.stompClient.subscribe('/topic/global-updates', (message) => {
+            const payload = JSON.parse(message.body);
+            console.log("🌍 Global update received:", payload);
+
+            if (payload.type === "GLOBAL_REPAGINATION") {
+              this.totalPages = payload.totalPages;
+              this.truncationEventTrigger++; // Bump counter to alert watching components
+            }
+          });
+        }
 
       };
 
       this.stompClient.activate();
     },
-    // 🚀 ADD THIS: Safe disconnection action
+    // Safe disconnection action
     disconnectWebSocket() {
       if (this.stompClient) {
-        // Unsubscribe from active topics if they exist
         if (this.currentSubscription) this.currentSubscription.unsubscribe();
         if (this.currentReactionsSubscription) this.currentReactionsSubscription.unsubscribe();
-
-        // Deactivate the stomp client link completely
+        if (this.globalUpdatesSubscription) { // 👈 Clean up
+          this.globalUpdatesSubscription.unsubscribe();
+          this.globalUpdatesSubscription = null;
+        }
         this.stompClient.deactivate();
         this.stompClient = null;
-        console.log('🔌 STOMP Client safely deactivated.');
       }
     },
 

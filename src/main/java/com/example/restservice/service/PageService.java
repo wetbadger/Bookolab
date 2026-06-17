@@ -15,6 +15,7 @@ import com.example.restservice.repository.WordRepository;
 
 import org.jspecify.annotations.NullMarked;
 import org.springframework.http.HttpStatus;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -35,12 +36,16 @@ public class PageService {
     private final WordRepository wordRepository;
     private final AuthorRepository authorRepository;
     private final ReactionRepository reactionRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
-    public PageService(PageRepository pageRepository, WordRepository wordRepository, AuthorRepository authorRepository, ReactionRepository reactionRepository) {
+    public PageService(PageRepository pageRepository, WordRepository wordRepository,
+                       AuthorRepository authorRepository, ReactionRepository reactionRepository,
+                       SimpMessagingTemplate messagingTemplate) { // 👈 Inject template
         this.pageRepository = pageRepository;
         this.wordRepository = wordRepository;
         this.authorRepository = authorRepository;
         this.reactionRepository = reactionRepository;
+        this.messagingTemplate = messagingTemplate;
     }
 
     @Transactional(readOnly = true)
@@ -298,5 +303,23 @@ public class PageService {
             currentPage.setLastWord(previousWord);
             pageRepository.save(currentPage);
         }
+
+        // 🚀 6. BROADCAST THE PAGINATION CHANGE TO ALL USERS GLOBALLY
+        long totalPagesNow = pageRepository.count();
+        Map<String, Object> syncPayload = Map.of(
+                "type", "GLOBAL_REPAGINATION",
+                "totalPages", totalPagesNow
+        );
+
+        // Broadcast to a top-level global topic
+        messagingTemplate.convertAndSend("/topic/global-updates", (Object) syncPayload);
+    }
+    @Transactional(readOnly = true)
+    public Long findWordPageLocation(Long wordId) {
+        return pageRepository.findPageIdByWordId(wordId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Word ID " + wordId + " does not belong to any active page bounds."
+                ));
     }
 }

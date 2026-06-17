@@ -243,6 +243,64 @@ watch(() => props.isEditMode, () => {
 watch(() => props.id, () => {
   initializePage();
 });
+
+// 🚀 WATCH FOR GLOBAL CRON RE-PAGINATION EVENTS
+watch(
+  () => pageStore.truncationEventTrigger,
+  async () => {
+    console.log("⚡ Database repagination detected! Relocating active focus rules...");
+
+    // 1. Is there an active edit box open? Let's check our child instances
+    let activelyEditingWordId = null;
+
+    for (const key in plusRefs.value) {
+      const plusInstance = plusRefs.value[key];
+      // Check if this specific input is actively open and focused
+      if (plusInstance && plusInstance.isComponentEditing) {
+        // Grab the anchor word ID this edit box was sitting behind
+        activelyEditingWordId = plusInstance.previous;
+        break;
+      }
+    }
+
+    // 2. Fetch the updated state profile for our current position
+    // This tells us if our old records even exist on this page index anymore
+    await pageStore.fetchPage(props.id);
+
+    // 3. CASE A: User has an active edit box open. Follow the word!
+    if (activelyEditingWordId) {
+      console.log(`Searching for newly displaced editing anchor word: ${activelyEditingWordId}`);
+
+      // We check if that specific word still belongs on our current page array view
+      const stillOnCurrentPage = pageStore.findWordInRecords(activelyEditingWordId);
+
+      if (!stillOnCurrentPage) {
+        // If it's missing, let's ask the backend or use an API utility to find where it went.
+        // As a highly performant fallback alternative: loop scan or issue a lightweight
+        // GET /api/words/{id}/page-location endpoint to grab the fresh page number.
+        try {
+          const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/words/${activelyEditingWordId}/page`);
+          const targetPageId = response.data.pageId;
+
+          router.push(`/pages/${targetPageId}/edit`);
+          return;
+        } catch (err) {
+          console.error("Could not trace migrated word anchor location", err);
+        }
+      }
+    }
+
+    // 4. CASE B: No edit box open, but the total pages shrank below our current view index
+    if (props.id > pageStore.totalPages) {
+      console.log(`Page ${props.id} no longer exists. Redirecting down to final tail page: ${pageStore.totalPages}`);
+      const suffix = props.isEditMode ? '/edit' : '';
+      router.push(`/pages/${pageStore.totalPages}${suffix}`);
+    } else {
+      // If we are still within valid bounds, just refresh our displayed words list
+      loadWords(!props.isEditMode, props.isEditMode, true);
+    }
+  }
+);
 </script>
 
 <style scoped>

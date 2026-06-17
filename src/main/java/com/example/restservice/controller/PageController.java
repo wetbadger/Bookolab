@@ -12,6 +12,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @CrossOrigin(origins = "${app.cors.allowed-origin}", allowCredentials = "true")
@@ -66,5 +67,11 @@ public class PageController {
     public ResponseEntity<Void> deletePage(@PathVariable Long id) {
         pageService.deletePage(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/api/words/{wordId}/page")
+    public ResponseEntity<Map<String, Long>> getWordPageLocation(@PathVariable Long wordId) {
+        Long pageId = pageService.findWordPageLocation(wordId);
+        return ResponseEntity.ok(Map.of("pageId", pageId));
     }
 }

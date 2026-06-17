@@ -16,7 +16,7 @@ public class Truncate {
     // Runs at the start of every minute (0th second)
     @Scheduled(cron = "0 * * * * *")
     public void executeTask() {
-        pageService.globalTruncateAndRepaginate(1000);
+        pageService.globalTruncateAndRepaginate(50);
         System.out.println("Cron task executed successfully!");
     }
 }
