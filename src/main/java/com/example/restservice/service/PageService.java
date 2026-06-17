@@ -199,7 +199,7 @@ public class PageService {
             // The previous page may be empty if someone deleted all the words on it
             // In that case, we look for the first populated previous page.
             int i = 2;
-            while (lastWordOfPreviousPage == null && id - i >= 0) {
+            while (lastWordOfPreviousPage == null && id - i > 0) {
                 previousPage = pageRepository.findById(id - i)
                         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Page not found"));
                 lastWordOfPreviousPage = previousPage.getLastWord();

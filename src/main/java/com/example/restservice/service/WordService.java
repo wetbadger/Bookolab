@@ -117,9 +117,9 @@ public class WordService {
 
         // 2. Splice into mid-chain or end-chain if an anchor was found
         if (previousWord != null) {
+            System.out.println("Previous word: " + previousWord.getContent());
             // Cache the next word link so we don't lose it
             Word nextWordAnchor = previousWord.getNextWord();
-
             // Sever the link on the previous word immediately to free up the unique constraint
             previousWord.setNextWord(null);
             wordRepository.saveAndFlush(previousWord); // Force the DB to see next_word_id is now NULL
@@ -136,15 +136,19 @@ public class WordService {
             Page currentPage = pageRepository.findById(currentPageId)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Current page not found"));
 
-            Page pageWithLastWord = pageRepository.findByLastWord(previousWord).orElse(null);
-            Page pageWithFirstWord = pageRepository.findByFirstWord(savedWord.getNextWord()).orElse(null);
-
-            if (pageWithLastWord != null && Objects.equals(pageWithLastWord.getId(), currentPageId)) {
+            // Case 1: The current page is completely empty (this is its first and only word)
+            if (currentPage.getFirstWord() == null) {
+                currentPage.setFirstWord(savedWord);
                 currentPage.setLastWord(savedWord);
             }
-
-            if (pageWithFirstWord != null && Objects.equals(pageWithFirstWord.getId(), currentPageId)) {
+            // Case 2: We are inserting a word right at the beginning of this page
+            // (i.e., the previous word belonged to the prior page, and this page's old first word is now our next word)
+            else if (Objects.equals(currentPage.getFirstWord(), savedWord.getNextWord())) {
                 currentPage.setFirstWord(savedWord);
+            }
+            // Case 3: We are appending to the very end of this page
+            else if (Objects.equals(currentPage.getLastWord(), previousWord)) {
+                currentPage.setLastWord(savedWord);
             }
 
             pageRepository.save(currentPage);
@@ -153,15 +157,44 @@ public class WordService {
         }
 
         // 3. Fallback: If both qualifiers are null, prepend/prepend-isolated to the specified page
+// 3. Fallback: If both qualifiers are null, prepend to the specified page
         Page targetPage = pageRepository.findById(currentPageId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Target page not found"));
-        
-        newWord.setNextWord(targetPage.getFirstWord());
+
+        if (targetPage.getFirstWord() != null) {
+            // Page already has content; prepend to the current page's chain
+            newWord.setNextWord(targetPage.getFirstWord());
+        } else {
+            // Page is empty! Look ahead to find the next non-empty page's first word
+            Word nextChainHead = null;
+            Long nextId = currentPageId + 1;
+
+            // Scan ahead up to a reasonable limit or until no more pages exist
+            while (true) {
+                java.util.Optional<Page> nextPageOpt = pageRepository.findById(nextId);
+                if (nextPageOpt.isEmpty()) {
+                    break; // No more pages in DB
+                }
+                Page nextPage = nextPageOpt.get();
+                if (nextPage.getFirstWord() != null) {
+                    nextChainHead = nextPage.getFirstWord();
+                    break; // Found the next link in the chain
+                }
+                nextId++;
+            }
+            newWord.setNextWord(nextChainHead);
+        }
+
         Word savedWord = wordRepository.saveAndFlush(newWord);
-        
+
+// If the page was empty, this new word is also the last word
+        if (targetPage.getFirstWord() == null) {
+            targetPage.setLastWord(savedWord);
+        }
+
         targetPage.setFirstWord(savedWord);
         pageRepository.save(targetPage);
-        
+
         return savedWord;
     }
 
@@ -208,8 +241,14 @@ public class WordService {
         // Unless we are the last word of the current page, set the next word DTO
         WordNodeDto nextWordNodeDto = null;
         Page nextPage = pageRepository.findById(currentPageId + 1).orElse(null);
+        int i = 2;
+        while (nextPage != null && nextPage.getFirstWord() == null) {
+            nextPage = pageRepository.findById(currentPageId + i).orElse(null);
+            i++;
+        }
         // Only check the first word if nextPage actually exists
-        if (nextPage != null && !nextPage.getFirstWord().equals(nextWord)) {
+        if (nextPage != null && nextPage.getFirstWord() != null
+                && !nextPage.getFirstWord().equals(nextWord)) {
             nextWordNodeDto = new WordNodeDto(
                     nextWord.getId(),
                     nextWord.getContent(),

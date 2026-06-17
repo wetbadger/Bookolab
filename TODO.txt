@@ -14,3 +14,6 @@ Leaderboard
 
 Bugs:
 [fixed] Anonymous users can't see site changes without a session token.
+[needs more testing] Empty pages between pages needs to be handled.
+When the only word gets deleted on a page, that should reflect in the last word in the local store.
+When a word gets created on a page, the next word needs to be reflected in the local store.
