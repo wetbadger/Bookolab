@@ -18,6 +18,7 @@ export const usePageStore = defineStore('pageStore', {
     currentWebSocketSubscription: null,
     currentReactionsSubscription: null,
     onRemoteWordAddedCallback: null,
+    totalPages: 1,
     globalCounter: 0 // TODO: use for id generation
   }),
   actions: {
@@ -186,7 +187,6 @@ export const usePageStore = defineStore('pageStore', {
 
       // 3. CASE A: List is completely empty
       if (!this.records.firstWord) {
-        console.log("Case A");
         this.records.firstWord = newNode;
         this.records.lastWord = {
           id: newNode.id,
@@ -199,7 +199,6 @@ export const usePageStore = defineStore('pageStore', {
 
       // 4. CASE B: Prepend to the beginning of the page
       if (this.records.firstWord && newWord.nextWord && this.records.firstWord.id === newWord.nextWord.id) {
-        console.log("Case B");
         newNode.nextWord = this.records.firstWord;
         this.records.firstWord = newNode;
         return;
@@ -211,7 +210,6 @@ export const usePageStore = defineStore('pageStore', {
                                    Number(newWord.nextWord.id) === Number(this.nextPageFirstWordId);
 
       if (!newWord.nextWord || isPointingToNextPage) {
-        console.log("Case C");
         // Find the current tail node on this page by navigating the active memory pointers
         let tail = this.records.firstWord;
         while (tail.nextWord) {
@@ -232,7 +230,6 @@ export const usePageStore = defineStore('pageStore', {
       }
 
       // 6. CASE D: Mid-chain Splicing (Strictly for items falling between existing words)
-      console.log("Case D");
       let current = this.records.firstWord;
       while (current) {
         if (current.nextWord && current.nextWord.id === newWord.nextWord.id) {
@@ -339,6 +336,10 @@ export const usePageStore = defineStore('pageStore', {
 
         this.records = response.data;
         this.nextPageFirstWordId = this.records.lastWord?.nextWordId;
+
+        if (response.data.totalPages) {
+          this.totalPages = response.data.totalPages;
+        }
 
         // Every time you navigate to or load a fresh page, switch the WebSocket room!
         this.subscribeToPageTopic(id);

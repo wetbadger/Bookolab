@@ -209,7 +209,7 @@ public class PageService {
                 lastWordIdOfPreviousPage = lastWordOfPreviousPage.getId();
         }
 
-        return new BoundedPageResponse(page.getId(), headDto, flatLastWord, lastWordIdOfPreviousPage);
+        return new BoundedPageResponse(page.getId(), headDto, flatLastWord, lastWordIdOfPreviousPage, pageRepository.count());
     }
 
     @Transactional
@@ -258,8 +258,9 @@ public class PageService {
         if (currentWord == null) return; // DB is completely empty
 
         // 2. Wipe old pages and FORCE a flush to free up the unique database constraints immediately
-        pageRepository.deleteAll();
-        pageRepository.flush();
+        // pageRepository.deleteAll();
+        // pageRepository.flush();
+        pageRepository.truncateAndResetSequence();
 
         // 3. Setup traversal and page tracking variables
         Page currentPage = new Page();

@@ -11,6 +11,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.http.MediaType;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.web.client.RestClient;
 
 import com.example.restservice.model.Word;
@@ -19,6 +20,7 @@ import com.example.restservice.repository.WordRepository;
 import com.example.restservice.repository.PageRepository;
 
 @SpringBootApplication
+@EnableScheduling
 public class RestServiceApplication implements CommandLineRunner {
 
     private final Logger logger = LoggerFactory.getLogger(this.getClass());

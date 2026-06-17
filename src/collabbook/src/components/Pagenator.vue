@@ -10,24 +10,30 @@
 </template>
 
 <script>
-import {BPagination} from "bootstrap-vue-next";
+import { BPagination } from "bootstrap-vue-next";
+import { usePageStore } from "@/stores/pageStore"; // 👈 Import your store
 
 export default {
   name: 'Paginator',
-  components: {BPagination},
+  components: { BPagination },
+  setup() {
+    const pageStore = usePageStore(); // 👈 Initialize store
+    return { pageStore };
+  },
   data() {
     return {
-      perPage: 1,
-      totalRows: 3, // Adjust this number if you have more than 3 pages total
+      perPage: 1 // 1 row per page index calculation since totalRows represents total pages
     }
   },
   computed: {
+    // 👈 ADD THIS: Pull dynamic page bounds seamlessly from your global store
+    totalRows() {
+      return this.pageStore.totalPages;
+    },
     currentPage: {
-      // 1. Read 'id' from the URL path parameter (/pages/:id)
       get() {
         return parseInt(this.$route.params.id) || 1
       },
-      // 2. Route to the new page path when clicked
       set(val) {
         const isEditMode = this.$route.path.endsWith('/edit')
 
@@ -35,7 +41,7 @@ export default {
           name: this.$route.name,
           params: {
             ...this.$route.params,
-            id: val // Updates the dynamic :id parameter in your router
+            id: val
           },
           path: isEditMode ? `/pages/${val}/edit` : `/pages/${val}`
         })
