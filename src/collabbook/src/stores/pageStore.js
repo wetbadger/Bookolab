@@ -186,6 +186,7 @@ export const usePageStore = defineStore('pageStore', {
 
       // 3. CASE A: List is completely empty
       if (!this.records.firstWord) {
+        console.log("Case A");
         this.records.firstWord = newNode;
         this.records.lastWord = {
           id: newNode.id,
@@ -198,6 +199,7 @@ export const usePageStore = defineStore('pageStore', {
 
       // 4. CASE B: Prepend to the beginning of the page
       if (this.records.firstWord && newWord.nextWord && this.records.firstWord.id === newWord.nextWord.id) {
+        console.log("Case B");
         newNode.nextWord = this.records.firstWord;
         this.records.firstWord = newNode;
         return;
@@ -209,6 +211,7 @@ export const usePageStore = defineStore('pageStore', {
                                    Number(newWord.nextWord.id) === Number(this.nextPageFirstWordId);
 
       if (!newWord.nextWord || isPointingToNextPage) {
+        console.log("Case C");
         // Find the current tail node on this page by navigating the active memory pointers
         let tail = this.records.firstWord;
         while (tail.nextWord) {
@@ -229,6 +232,7 @@ export const usePageStore = defineStore('pageStore', {
       }
 
       // 6. CASE D: Mid-chain Splicing (Strictly for items falling between existing words)
+      console.log("Case D");
       let current = this.records.firstWord;
       while (current) {
         if (current.nextWord && current.nextWord.id === newWord.nextWord.id) {
@@ -242,22 +246,40 @@ export const usePageStore = defineStore('pageStore', {
     },
 
     deleteWordFromRecords(payload) {
-      if (!this.records) return;
+      if (!this.records) {
+        return;
+      }
 
       let previousWordId = payload.previousWordId;
       let nextWord = payload.nextWord;
+
+      let firstWordOfNextPage = this.records.lastWord?.nextWordId;
+      if (nextWord == null) {
+        // This is the last word of the current page.
+        this.records.lastWord = null;
+      }
 
       if (this.records.lastWordIdOfPreviousPage === previousWordId) {
         this.records.firstWord = this.records.firstWord.nextWord;
       } else {
         let current = this.records.firstWord;
+        let prev = null;
         while (current) {
           if (current.id === previousWordId) {
-            const temp = current?.nextWord?.nextWord;
+            // const temp = current?.nextWord?.nextWord;
             current.nextWord = nextWord;
-            nextWord.nextWord = temp?.nextWord;
+            // nextWord.nextWord = temp?.nextWord;
+            if (!this.records.lastWord) {
+              this.records.lastWord = {
+                "id": current.id,
+                "content": current.content,
+                "nextWordId": firstWordOfNextPage,
+                "previousWordId": prev.id
+              }
+            }
             break;
           }
+          prev = current;
           current = current.nextWord;
         }
       }

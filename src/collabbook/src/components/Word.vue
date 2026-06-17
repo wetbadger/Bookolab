@@ -31,25 +31,26 @@
         <div class="author-info">
           By: <a :href="`/authors/${data.authorName || 'Anonymous'}`">{{ data.authorName || 'Anonymous' }}</a>
         </div>
-        <!-- TODO: add a v-if user is admin or has enough delete credits -->
-        <!-- Show delete cost -->
-          <BButton
-            class="delete-btn"
-            @click="deleteWord"
-          >
-            <span class="delete">DELETE</span><br><span> {{ credits }} credits</span>
-          </BButton>
+        <BButton
+          v-if="authStore.user && userCredits >= credits"
+          class="delete-btn"
+          @click="deleteWord"
+        >
+          <span class="delete">DELETE</span><br><span> <span v-if="credits < 0">+</span>{{ -credits }} credits</span>
+        </BButton>
       </div>
     </span>
   </span>
 </template>
 
 <script setup>
-import {computed, ref} from 'vue';
+import {computed, onMounted, ref} from 'vue';
 import { BButton, vBTooltip } from 'bootstrap-vue-next';
 import { usePageStore } from '@/stores/pageStore';
+import { useAuthStore } from '@/stores/authStore';
 
 const pageStore = usePageStore();
+const authStore = useAuthStore();
 
 const props = defineProps({
   data: { type: Object, required: true },
@@ -65,6 +66,7 @@ const emit = defineEmits(['react']);
 // Simple local booleans initialized to whatever the server said originally
 const isLikeActive = ref(props.data.userLiked);
 const isDislikeActive = ref(props.data.userDisliked);
+const userCredits = ref(0)
 
 let clickCount = 0;
 
@@ -114,6 +116,10 @@ const countClicks = () => {
   }
   clickCount = 0;
 }
+
+onMounted(() => {
+  userCredits.value = authStore.getCredits();
+});
 </script>
 
 <style scoped>

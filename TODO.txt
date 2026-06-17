@@ -7,7 +7,7 @@ Give users 2 minutes to edit or delete their own words
 Show how long ago a word was created
 Filter for ethnic slurs
 Truncate the pages every 10 minutes
-Delete words
+[done] Delete words
 Rate limit accounts
 Limit number of accounts per ip
 Leaderboard
@@ -15,5 +15,5 @@ Leaderboard
 Bugs:
 [fixed] Anonymous users can't see site changes without a session token.
 [needs more testing] Empty pages between pages needs to be handled.
-When the only word gets deleted on a page, that should reflect in the last word in the local store.
+[needs more testing] When the only word gets deleted on a page, that should reflect in the last word in the local store.
 When a word gets created on a page, the next word needs to be reflected in the local store.

@@ -66,6 +66,14 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  function getCredits() {
+    if (user.value) {
+      return (user.value.score - user.value.creditsSpent);
+    } else {
+      return 0;
+    }
+  }
+
   function setToken(newToken) {
     token.value = newToken;
     localStorage.setItem('token', newToken);
@@ -88,6 +96,7 @@ export const useAuthStore = defineStore('auth', () => {
     login,
     signup,
     fetchCurrentUser,
-    logout
+    logout,
+    getCredits
   };
 });
