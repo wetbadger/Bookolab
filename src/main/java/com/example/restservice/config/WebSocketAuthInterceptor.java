@@ -38,7 +38,7 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
             // 1. HANDLE CONNECTION INITIATION (ALLOW ANONYMOUS/GUEST FALLBACK)
             if (StompCommand.CONNECT.equals(accessor.getCommand())) {
                 String authorizationHeader = accessor.getFirstNativeHeader("Authorization");
-                System.out.println("Received WebSocket Auth Header: " + authorizationHeader);
+                // System.out.println("Received WebSocket Auth Header: " + authorizationHeader);
 
                 if (authorizationHeader != null) {
                     String jwt = null;
@@ -58,7 +58,7 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
                                     UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
 
                                     if (!userDetails.isEnabled()) {
-                                        System.out.println("🚫 Connection rejected: User '" + username + "' is currently banned/disabled.");
+                                        // System.out.println("🚫 Connection rejected: User '" + username + "' is currently banned/disabled.");
                                         return null; // Banned users get completely disconnected
                                     }
 
@@ -67,29 +67,30 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
                                                 userDetails, null, userDetails.getAuthorities()
                                         );
                                         accessor.setUser(authToken);
-                                        System.out.println("Successfully authenticated WebSocket user: " + username);
+                                        // System.out.println("Successfully authenticated WebSocket user: " + username);
                                     }
                                 } catch (org.springframework.security.core.userdetails.UsernameNotFoundException ue) {
+                                    // This shouldn't happen.
                                     System.err.println("⚠️ Token valid, but user '" + username + "' no longer exists in DB. Proceeding as Guest.");
                                     setAnonymousUser(accessor);
                                 }
                             }
                         } catch (ExpiredJwtException e) {
-                            System.err.println("⚠️ JWT has expired. Setting session to Read-Only Guest.");
+                            // System.err.println("⚠️ JWT has expired. Setting session to Read-Only Guest.");
                             setAnonymousUser(accessor);
 
                         } catch (SignatureException | MalformedJwtException | UnsupportedJwtException | IllegalArgumentException e) {
-                            System.err.println("⚠️ Invalid JWT structure/signature. Setting session to Read-Only Guest.");
+                            // System.err.println("⚠️ Invalid JWT structure/signature. Setting session to Read-Only Guest.");
                             setAnonymousUser(accessor);
 
                         } catch (Exception e) {
-                            System.err.println("CRITICAL: Unexpected JWT error in Interceptor. Setting session to Read-Only Guest.");
+                            // System.err.println("CRITICAL: Unexpected JWT error in Interceptor. Setting session to Read-Only Guest.");
                             e.printStackTrace();
                             setAnonymousUser(accessor);
                         }
                     }
                 } else {
-                    System.out.println("-> Anonymous user browsing page. Proceeding as Guest.");
+                    // System.out.println("-> Anonymous user browsing page. Proceeding as Guest.");
                 }
             }
 
@@ -98,7 +99,7 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
                 if (accessor.getUser() == null ||
                         accessor.getUser() instanceof AnonymousAuthenticationToken) {
 
-                    System.err.println("🚫 Read-Only Mode Block: Anonymous/Expired sessions cannot send messages.");
+                    // System.err.println("🚫 Read-Only Mode Block: Anonymous/Expired sessions cannot send messages.");
                     return null; // Drops the payload completely
                 }
             }

@@ -235,7 +235,7 @@ watch(
   () => pageStore.records,
   (newRecords) => {
     if (newRecords) {
-      console.log("🔄 Store records mutation detected. Updating display array instantly...");
+      // console.log("🔄 Store records mutation detected. Updating display array instantly...");
 
       // Arguments:
       // 1. streamWords = false
@@ -263,7 +263,7 @@ const applyUrlQueryStates = async () => {
   // 1. Wait for Vue to physically render the newly modified array layout elements
   await nextTick();
 
-  console.log(`🎯 URL query detected! Attempting to restore input behind word: ${targetWordId}`);
+  // console.log(`🎯 URL query detected! Attempting to restore input behind word: ${targetWordId}`);
 
   // 2. Scan your active layout refs to locate the matching box tracking position
   for (const key in plusRefs.value) {
@@ -306,7 +306,7 @@ watch(() => props.id, () => {
 watch(
   () => pageStore.truncationEventTrigger,
   async () => {
-    console.log("⚡ Database repagination detected! Relocating active focus rules...");
+    // console.log("⚡ Database repagination detected! Relocating active focus rules...");
 
     let activelyEditingWordId = null;
     let unsavedText = '';
@@ -326,12 +326,12 @@ watch(
 
     // 3. CASE A: User has an active edit box open. Follow the word!
     if (activelyEditingWordId) {
-      console.log(`Searching for newly displaced editing anchor word: ${activelyEditingWordId}`);
+      // console.log(`Searching for newly displaced editing anchor word: ${activelyEditingWordId}`);
 
       const stillOnCurrentPage = pageStore.findWordInRecords(activelyEditingWordId);
 
       if (!stillOnCurrentPage) {
-        console.log("Word moved pages. Fetching new location from store...");
+        // console.log("Word moved pages. Fetching new location from store...");
         try {
           // DISPATCH TO PINIA STORE ACTION
           const targetPageId = await pageStore.findMigratedWordPage(activelyEditingWordId);
@@ -348,7 +348,7 @@ watch(
 
     // 4. CASE B: No edit box open, but the total pages shrank below our current view index
     if (props.id > pageStore.totalPages) {
-      console.log(`Page ${props.id} no longer exists. Redirecting down to final tail page: ${pageStore.totalPages}`);
+      // console.log(`Page ${props.id} no longer exists. Redirecting down to final tail page: ${pageStore.totalPages}`);
       const suffix = props.isEditMode ? '/edit' : '';
       router.push(`/pages/${pageStore.totalPages}${suffix}`);
     } else {

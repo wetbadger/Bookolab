@@ -37,11 +37,13 @@ export const usePageStore = defineStore('pageStore', {
         connectHeaders: {
           Authorization: token ? `Bearer ${token}` : ''
         },
-        debug: function (str) { console.log('STOMP: ' + str); },
+        debug: function (str) {
+          // console.log('STOMP: ' + str);
+        },
       });
 
       this.stompClient.onConnect = (frame) => {
-        console.log('🎉 Connected to Spring STOMP Broker!');
+        // console.log('🎉 Connected to Spring STOMP Broker!');
         const serverUser = frame.headers['user-name'];
         if (serverUser === 'anonymousUser') {
           // Clear your frontend storage so it stops sending the bad token on refresh
@@ -54,7 +56,7 @@ export const usePageStore = defineStore('pageStore', {
         if (!this.globalUpdatesSubscription) {
           this.globalUpdatesSubscription = this.stompClient.subscribe('/topic/global-updates', (message) => {
             const payload = JSON.parse(message.body);
-            console.log("🌍 Global update received:", payload);
+            // console.log("🌍 Global update received:", payload);
 
             if (payload.type === "GLOBAL_REPAGINATION") {
               this.totalPages = payload.totalPages;
@@ -83,7 +85,7 @@ export const usePageStore = defineStore('pageStore', {
 
     // Forced reconnect action to break out of the early return block
     reconnectWebSocket() {
-      console.log('🔄 Forcing WebSocket reconnection with fresh credentials...');
+      // console.log('🔄 Forcing WebSocket reconnection with fresh credentials...');
       this.disconnectWebSocket(); // Kill the unauthenticated connection
       this.initializeTestWebSocket(); // Fire up a completely pristine authenticated one
     },
@@ -97,7 +99,7 @@ export const usePageStore = defineStore('pageStore', {
       this.currentSubscription = this.stompClient.subscribe(`/topic/page/${pageId}`, (message) => {
         // Fix: Parse the message body into our inboundPayload variable
         const inboundPayload = JSON.parse(message.body);
-        console.log("🔥 Incoming WebSocket payload caught:", inboundPayload);
+        // console.log("🔥 Incoming WebSocket payload caught:", inboundPayload);
 
         // Check if the payload is a cross-page boundary patch command
         if (inboundPayload.type === "PREVIOUS_PAGE_TAIL_CHANGED" ||
@@ -115,7 +117,7 @@ export const usePageStore = defineStore('pageStore', {
       // --- CHANNEL 2: Live Reaction Updates 👈 ADD THIS ---
       this.currentReactionsSubscription = this.stompClient.subscribe(`/topic/page/${pageId}/reactions`, (message) => {
         const reactionEvent = JSON.parse(message.body);
-        console.log("❤️ Incoming live reaction caught:", reactionEvent);
+        // console.log("❤️ Incoming live reaction caught:", reactionEvent);
 
         this.updateWordReactionCount(reactionEvent.wordId, reactionEvent.reactionType, reactionEvent.totalCount);
       });
@@ -151,9 +153,9 @@ export const usePageStore = defineStore('pageStore', {
           destination: '/app/send-reaction',
           body: JSON.stringify(payload)
         });
-        console.log("📡 Dispatched reaction action to backend:", payload);
+        // console.log("📡 Dispatched reaction action to backend:", payload);
       } else {
-        console.error("STOMP Client disconnected. Cannot send reaction.");
+        // console.error("STOMP Client disconnected. Cannot send reaction.");
       }
     },
     // Processes cross-page linking updates from neighboring tabs
@@ -161,7 +163,7 @@ export const usePageStore = defineStore('pageStore', {
       if (!this.records) return;
 
       if (patch.type === "NEXT_PAGE_HEAD_CHANGED") {
-        console.log(`📡 Patching out-bound link pointer -> newNextWordId: ${patch.newNextWordId}`);
+        // console.log(`📡 Patching out-bound link pointer -> newNextWordId: ${patch.newNextWordId}`);
         // 1. Update the metadata link tracking pointer
         this.nextPageFirstWordId = patch.newNextWordId;
 
@@ -172,7 +174,7 @@ export const usePageStore = defineStore('pageStore', {
       }
 
       else if (patch.type === "PREVIOUS_PAGE_TAIL_CHANGED") {
-        console.log(`📡 Patching in-bound fallback anchor -> newLastWordIdOfPreviousPage: ${patch.newLastWordIdOfPreviousPage}`);
+        // console.log(`📡 Patching in-bound fallback anchor -> newLastWordIdOfPreviousPage: ${patch.newLastWordIdOfPreviousPage}`);
         // Update the fallback tracking pointer
         this.records.lastWordIdOfPreviousPage = patch.newLastWordIdOfPreviousPage;
       }
@@ -184,7 +186,7 @@ export const usePageStore = defineStore('pageStore', {
 
       // 1. Conflict Resolution: Prevent duplicate insertions
       if (this.findWordInRecords(newWord.id || newWord.localId)) {
-        console.log(`✅ Word "${newWord.content}" already accounted for in store.`);
+        // console.log(`✅ Word "${newWord.content}" already accounted for in store.`);
         return;
       }
 
@@ -328,9 +330,9 @@ export const usePageStore = defineStore('pageStore', {
           destination: '/app/send-word',
           body: JSON.stringify(payload) // Map becomes standard JSON string
         });
-        console.log("📡 Dispatched object to backend:", payload);
+        // console.log("📡 Dispatched object to backend:", payload);
       } else {
-        console.error("STOMP Client disconnected. Cannot send payload.");
+        // console.error("STOMP Client disconnected. Cannot send payload.");
       }
     },
     // Sends a structured JSON payload
@@ -340,9 +342,9 @@ export const usePageStore = defineStore('pageStore', {
           destination: '/app/delete-word',
           body: JSON.stringify(payload) // Map becomes standard JSON string
         });
-        console.log("📡 Dispatched object for deletion to backend:", payload);
+        // console.log("📡 Dispatched object for deletion to backend:", payload);
       } else {
-        console.error("STOMP Client disconnected. Cannot send payload.");
+        // console.error("STOMP Client disconnected. Cannot send payload.");
       }
     },
 

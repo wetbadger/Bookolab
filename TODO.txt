@@ -11,6 +11,8 @@ Filter for ethnic slurs
 Rate limit accounts
 Limit number of accounts per ip
 Leaderboard
+Use Cloudlfare Turnstile to prevent robots from submitting
+Allow users to delete accounts (their words become anonymous)
 
 Bugs:
 [fixed] Anonymous users can't see site changes without a session token.

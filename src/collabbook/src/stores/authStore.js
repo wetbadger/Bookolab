@@ -69,7 +69,6 @@ export const useAuthStore = defineStore('auth', () => {
   async function fetchPublicProfileByUsername(username) {
     try {
       const response = await api.get(`api/authors/profile/${username}`);
-      console.log(response.data);
       return response.data;
     } catch(err) {
       error.value = err.response?.data?.message || 'Failed to fetch author profile.';

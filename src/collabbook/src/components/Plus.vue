@@ -63,7 +63,6 @@ const inputRef = ref(null);
 let localId = null;
 
 const startEditing = async () => {
-  console.log(props.previous);
   if (!localId) localId = pageStore.generateSimpleId();
   isComponentEditing.value = true;
   await nextTick();

@@ -57,12 +57,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
             if (username != null && (authentication == null || authentication instanceof AnonymousAuthenticationToken)) {
-                System.out.println("🔍 Filter processing JWT for user: " + username);
+                // System.out.println("🔍 Filter processing JWT for user: " + username);
                 UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
-                System.out.println("📋 User authorities found in DB: " + userDetails.getAuthorities());
+                // System.out.println("📋 User authorities found in DB: " + userDetails.getAuthorities());
 
                 if (jwtService.isTokenValid(jwt, userDetails)) {
-                    System.out.println("✅ Token is structurally valid!");
+                    // System.out.println("✅ Token is structurally valid!");
                     UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                             userDetails,
                             null,
@@ -71,9 +71,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authToken);
-                    System.out.println("🔓 SecurityContext successfully populated for: " + username);
+                    // System.out.println("🔓 SecurityContext successfully populated for: " + username);
                 } else {
-                    System.out.println("❌ Token validation failed in JwtService!");
+                    // System.out.println("❌ Token validation failed in JwtService!");
                 }
             }
             filterChain.doFilter(request, response);
