@@ -40,18 +40,22 @@ public class SecurityConfiguration {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(authorize -> authorize
-                        // 1. CRITICAL: Authenticated exceptions go first
-                        .requestMatchers("/api/pages/*/edit").authenticated()
-                        .requestMatchers("/api/authors/me").authenticated() // Fix: Fully match the prefix used by Axios
+                        // 1. ALLOW ALL BROWSER CORS PREFLIGHT CHECKS FIRST
+                        .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
 
-                        // 2. Broad permitAll mappings go second
+                        // 2. Authenticated exceptions go second
+                        .requestMatchers("/api/pages/*/edit").authenticated()
+                        .requestMatchers("/api/authors/me").authenticated()
+                        .requestMatchers("/auth/delete-current-account").authenticated()
+
+                        // 3. Broad permitAll mappings go third
                         .requestMatchers("/gs-guide-websocket/**").permitAll()
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers("/api/words/**").permitAll()
                         .requestMatchers("/api/authors/**").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/pages/*").permitAll()
 
-                        // 3. Fallback
+                        // 4. Fallback
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session
@@ -78,7 +82,7 @@ public class SecurityConfiguration {
         // Notice the double asterisks (/**) to match nested resources correctly
         source.registerCorsConfiguration("/api/pages/**", allowPagesConfig);
         source.registerCorsConfiguration("/api/pages/*/edit", denyEditConfig);
-        source.registerCorsConfiguration("/**", allowPagesConfig); // This will now catch /auth/login and /auth/signup
+        source.registerCorsConfiguration("/**", allowPagesConfig);
 
         return source;
     }

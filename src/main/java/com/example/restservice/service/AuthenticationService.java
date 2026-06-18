@@ -6,6 +6,7 @@ import com.example.restservice.model.Author;
 import com.example.restservice.repository.AuthorRepository;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -55,5 +56,10 @@ public class AuthenticationService {
         );
 
         return author;
+    }
+
+    public void deleteAccount(Author author) {
+        System.out.println("Deleting "+author.getUsername());
+        authorRepository.deleteById(author.getId());
     }
 }

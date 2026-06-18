@@ -8,10 +8,10 @@ import com.example.restservice.service.AuthenticationService;
 import com.example.restservice.service.JwtService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.web.bind.annotation.*;
 
 @RequestMapping("/auth")
 @RestController
@@ -46,6 +46,21 @@ public class AuthenticationController {
         String jwtToken = jwtService.generateToken(authenticatedAuthor);
         LoginResponse loginResponse = new LoginResponse(jwtToken, jwtService.getExpirationTime());
         return ResponseEntity.ok(loginResponse);
+    }
+
+    @DeleteMapping("/delete-current-account")
+    public ResponseEntity<?> deleteCurrentAccount() {
+        // 1. Grab the authentication object from the context
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        // 2. Extract the principal (usually your UserDetails object or username)
+        assert authentication != null;
+        Author author = (Author) authentication.getPrincipal();
+
+        authenticationService.deleteAccount(author);
+
+        // Your deletion logic here...
+        return ResponseEntity.ok().build();
     }
 
     private boolean isPasswordSecure(String password) {

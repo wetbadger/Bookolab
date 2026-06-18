@@ -98,6 +98,21 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem('token');
   }
 
+  async function deleteAccount() {
+    try {
+      const response = await api.delete("/auth/delete-current-account");
+
+      // If deletion is successful on the backend, clear out local user data
+      if (response.status === 200 || response.status === 204) {
+        logout();
+        return true;
+      }
+    } catch(err) {
+      error.value = err.response?.data?.message || 'Server error.';
+      return false;
+    }
+  }
+
   // Remember to expose 'isAuthLoading' to components
   return {
     token,
@@ -110,6 +125,7 @@ export const useAuthStore = defineStore('auth', () => {
     fetchCurrentUser,
     logout,
     getCredits,
-    fetchPublicProfileByUsername
+    fetchPublicProfileByUsername,
+    deleteAccount
   };
 });

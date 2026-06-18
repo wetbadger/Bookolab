@@ -2,7 +2,7 @@
 [done] double click to like
 [done] triple click to dislike
 Type password again field
-Make sure passwords are secure
+[done] Make sure passwords are secure
 Give users 2 minutes to edit or delete their own words
 Show how long ago a word was created
 Filter for ethnic slurs
@@ -11,8 +11,8 @@ Filter for ethnic slurs
 Rate limit accounts
 Limit number of accounts per ip
 Leaderboard
-Use Cloudlfare Turnstile to prevent robots from submitting
-Allow users to delete accounts (their words become anonymous)
+Use Cloudflare Turnstile to prevent robots from submitting
+[done] Allow users to delete accounts (their words become anonymous)
 
 Bugs:
 [fixed] Anonymous users can't see site changes without a session token.

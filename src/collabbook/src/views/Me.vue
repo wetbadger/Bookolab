@@ -42,6 +42,9 @@
       </div>
 
       <div class="profile-actions">
+        <router-link :to="`/delete-account`">
+          I think I want to delete my account.
+        </router-link>
         <button @click="handleLogout" class="btn btn-danger">
           Log Out
         </button>

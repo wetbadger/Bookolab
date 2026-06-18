@@ -5,6 +5,7 @@ import Login from '@/views/Login.vue';
 import Signup from '@/views/Signup.vue';
 import Me from '@/views/Me.vue';
 import Author from '@/views/Author.vue';
+import DeleteAccount from '@/views/DeleteAccount.vue';
 
 const isDebugMode = false;
 
@@ -48,6 +49,11 @@ const routes = [
     name: 'author',
     component: Author,
     props: route => ({ username: route.params.name })
+  },
+  {
+    path: '/delete-account',
+    name: 'delete-account',
+    component: DeleteAccount
   }
 ];
 
