@@ -72,12 +72,18 @@ export const usePageStore = defineStore('pageStore', {
     // Safe disconnection action
     disconnectWebSocket() {
       if (this.stompClient) {
-        if (this.currentSubscription) this.currentSubscription.unsubscribe();
-        if (this.currentReactionsSubscription) this.currentReactionsSubscription.unsubscribe();
-        if (this.globalUpdatesSubscription) { // 👈 Clean up
-          this.globalUpdatesSubscription.unsubscribe();
-          this.globalUpdatesSubscription = null;
+        // 1. Only attempt to transmit unsubscribe frames if the client is actively online
+        if (this.stompClient.connected) {
+          if (this.currentSubscription) this.currentSubscription.unsubscribe();
+          if (this.currentReactionsSubscription) this.currentReactionsSubscription.unsubscribe();
+          if (this.globalUpdatesSubscription) this.globalUpdatesSubscription.unsubscribe();
         }
+
+        // 2. CRITICAL: Wipe out the stale references from Pinia memory completely
+        this.currentSubscription = null;
+        this.currentReactionsSubscription = null;
+        this.globalUpdatesSubscription = null;
+
         this.stompClient.deactivate();
         this.stompClient = null;
       }

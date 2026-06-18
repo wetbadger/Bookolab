@@ -40,19 +40,18 @@ public class SecurityConfiguration {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(authorize -> authorize
+                        // 1. CRITICAL: Authenticated exceptions go first
+                        .requestMatchers("/api/pages/*/edit").authenticated()
+                        .requestMatchers("/api/authors/me").authenticated() // Fix: Fully match the prefix used by Axios
+
+                        // 2. Broad permitAll mappings go second
                         .requestMatchers("/gs-guide-websocket/**").permitAll()
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers("/api/words/**").permitAll()
                         .requestMatchers("/api/authors/**").permitAll()
-
-                        // 1. SPECIFIC FIRST: Explicitly require auth for the edit sub-path
-                        .requestMatchers("/api/pages/*/edit").authenticated()
-                        .requestMatchers("/authors/me").authenticated()
-
-                        // 2. GENERAL SECOND: Allow public GET viewing for standard pages
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/pages/*").permitAll()
 
-                        // 3. FALLBACK: Everything else stays completely locked down
+                        // 3. Fallback
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session
@@ -65,8 +64,9 @@ public class SecurityConfiguration {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration allowPagesConfig = new CorsConfiguration();
-        allowPagesConfig.setAllowedOrigins(List.of(allowedOrigin)); // e.g., http://localhost:5173
-        allowPagesConfig.setAllowedMethods(List.of("GET", "POST", "OPTIONS")); // Added OPTIONS just in case of preflight checks
+        allowPagesConfig.setAllowedOrigins(List.of(allowedOrigin));
+        // Best practice: Allow PUT and DELETE alongside GET/POST/OPTIONS for standard REST operations
+        allowPagesConfig.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         allowPagesConfig.setAllowedHeaders(List.of("Authorization", "Content-Type"));
         allowPagesConfig.setAllowCredentials(true);
 
@@ -75,10 +75,10 @@ public class SecurityConfiguration {
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
 
-        // Apply standard CORS rules to the API pages
-        source.registerCorsConfiguration("/api/pages/*", allowPagesConfig);
+        // Notice the double asterisks (/**) to match nested resources correctly
+        source.registerCorsConfiguration("/api/pages/**", allowPagesConfig);
         source.registerCorsConfiguration("/api/pages/*/edit", denyEditConfig);
-        source.registerCorsConfiguration("/**", allowPagesConfig);
+        source.registerCorsConfiguration("/**", allowPagesConfig); // This will now catch /auth/login and /auth/signup
 
         return source;
     }
