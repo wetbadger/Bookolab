@@ -30,7 +30,7 @@ export const useAuthStore = defineStore('auth', () => {
 
       return true;
     } catch (err) {
-      error.value = err.response?.data?.message || 'Login failed. Check your credentials.';
+      error.value = 'Login failed. Check your credentials.';
       return false;
     }
   }

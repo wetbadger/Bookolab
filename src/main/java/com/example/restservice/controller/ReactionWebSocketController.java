@@ -54,7 +54,7 @@ public class ReactionWebSocketController {
 
         // 3. Process database toggle logic via your service layer
         String actionTaken = reactionService.handleReactionAndReturnAction(authorDetails.getId(), wordId, incomingType);
-        System.out.println("Action taken: " + actionTaken);
+        // System.out.println("Action taken: " + actionTaken);
 
         String destination = "/topic/page/" + currentPageId + "/reactions";
 
