@@ -65,6 +65,7 @@ const inputRef = ref(null);
 let localId = null;
 
 const startEditing = async () => {
+  console.log(props.previous);
   if (!localId) localId = pageStore.generateSimpleId();
   isComponentEditing.value = true;
   await nextTick();
@@ -128,10 +129,16 @@ onMounted(() => {
   }
 });
 
+const setInputValue = (text) => {
+  newWord.value = text;
+};
+
 defineExpose({
   focusInnerInput,
   isComponentEditing,
-  previous: props.previous
+  getPrevious: () => props.previous,
+  getInputValue: () => newWord.value,
+  setInputValue
 });
 </script>
 

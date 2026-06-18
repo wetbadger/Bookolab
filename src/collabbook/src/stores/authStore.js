@@ -54,15 +54,26 @@ export const useAuthStore = defineStore('auth', () => {
 
     isAuthLoading.value = true; // 🚀 Ensure loading state turns on when fetching
     try {
-      const response = await api.get('/authors/me');
+      const response = await api.get('/api/authors/me');
       user.value = response.data;
       return user.value;
     } catch (err) {
-      error.value = err.response?.data?.message || 'Failed to fetch user profile.';
+      error.value = err.response?.data?.message || 'Failed to fetch author profile.';
       logout();
       return null;
     } finally {
       isAuthLoading.value = false; // 🚀 Always turn off loading whether it succeeds or fails
+    }
+  }
+
+  async function fetchPublicProfileByUsername(username) {
+    try {
+      const response = await api.get(`api/authors/profile/${username}`);
+      console.log(response.data);
+      return response.data;
+    } catch(err) {
+      error.value = err.response?.data?.message || 'Failed to fetch author profile.';
+      return null;
     }
   }
 
@@ -97,6 +108,7 @@ export const useAuthStore = defineStore('auth', () => {
     signup,
     fetchCurrentUser,
     logout,
-    getCredits
+    getCredits,
+    fetchPublicProfileByUsername
   };
 });

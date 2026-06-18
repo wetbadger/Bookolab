@@ -42,6 +42,8 @@ public class SecurityConfiguration {
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/gs-guide-websocket/**").permitAll()
                         .requestMatchers("/auth/**").permitAll()
+                        .requestMatchers("/api/words/**").permitAll()
+                        .requestMatchers("/api/authors/**").permitAll()
 
                         // 1. SPECIFIC FIRST: Explicitly require auth for the edit sub-path
                         .requestMatchers("/api/pages/*/edit").authenticated()

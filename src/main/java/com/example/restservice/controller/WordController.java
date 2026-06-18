@@ -2,6 +2,7 @@ package com.example.restservice.controller;
 
 import com.example.restservice.dto.FlatLinkedWordDto;
 import com.example.restservice.model.Word;
+import com.example.restservice.service.PageService;
 import com.example.restservice.service.WordService;
 import org.jspecify.annotations.NullMarked;
 import org.springframework.http.HttpStatus;
@@ -9,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @CrossOrigin(origins = "${app.cors.allowed-origin}", allowCredentials = "true")
@@ -17,9 +19,11 @@ import java.util.List;
 public class WordController {
 
     private final WordService wordService;
+    private final PageService pageService;
 
-    public WordController(WordService wordService) {
+    public WordController(WordService wordService, PageService pageService) {
         this.wordService = wordService;
+        this.pageService = pageService;
     }
 
     @GetMapping
@@ -64,5 +68,13 @@ public class WordController {
                                            @RequestParam(required = false) String authorName) {
         wordService.deleteWord(id, currentPageId, authorName);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{wordId}/page")
+    public ResponseEntity<Map<String, Long>> getWordPageLocation(@PathVariable Long wordId) {
+        System.out.println("Finding word on page.");
+        Long pageId = pageService.findWordPageLocation(wordId);
+        System.out.println("Word " + Long.toString(wordId) + " found on page: " + Long.toString(pageId));
+        return ResponseEntity.ok(Map.of("pageId", pageId));
     }
 }

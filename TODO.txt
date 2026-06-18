@@ -6,7 +6,7 @@ Make sure passwords are secure
 Give users 2 minutes to edit or delete their own words
 Show how long ago a word was created
 Filter for ethnic slurs
-Truncate the pages every 10 minutes
+[done] Truncate the pages every 10 minutes
 [done] Delete words
 Rate limit accounts
 Limit number of accounts per ip

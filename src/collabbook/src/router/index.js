@@ -4,8 +4,9 @@ import Page from '@/views/Page.vue';
 import Login from '@/views/Login.vue';
 import Signup from '@/views/Signup.vue';
 import Me from '@/views/Me.vue';
+import Author from '@/views/Author.vue';
 
-const isDebugMode = true;
+const isDebugMode = false;
 
 const routes = [
   {
@@ -41,6 +42,12 @@ const routes = [
     path: '/me',
     name: 'me',
     component: Me
+  },
+  {
+    path: '/authors/:name',
+    name: 'author',
+    component: Author,
+    props: route => ({ username: route.params.name })
   }
 ];
 

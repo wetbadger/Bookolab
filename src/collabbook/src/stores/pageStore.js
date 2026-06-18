@@ -472,6 +472,29 @@ export const usePageStore = defineStore('pageStore', {
         previousWordId: secondToLastWordId
       };
     },
+    // 🚀 ADD THIS ACTION INSIDE YOUR ACTIONS BLOCK
+    async findMigratedWordPage(wordId) {
+      try {
+        const token = localStorage.getItem('token');
+        const config = {};
+        if (token) {
+          config.headers = {
+            Authorization: `Bearer ${token}`
+          };
+        }
+
+        const response = await axios.get(
+          `${API_BASE_URL}/api/words/${wordId}/page`,
+          config
+        );
+
+        // Return the target page ID directly to the calling component
+        return response.data.pageId;
+      } catch (err) {
+        console.error("Could not trace migrated word anchor location:", err);
+        throw err;
+      }
+    },
     // A fast, non-crypto UUIDv4 look-alike generator for HTTP
     // TODO: make collisions less likely somehow
     generateSimpleId() {

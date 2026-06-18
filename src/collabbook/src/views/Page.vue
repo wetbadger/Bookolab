@@ -67,7 +67,7 @@
 
 <script setup>
 import { onMounted, ref, computed, watch, nextTick, onBeforeUpdate, watchEffect } from 'vue'; // Added watchEffect
-import { useRouter } from 'vue-router'; // Add this import
+import { useRouter, useRoute } from 'vue-router'; // Add this import
 
 import { usePageStore } from '@/stores/pageStore';
 import { useAuthStore } from '@/stores/authStore'; // Import the new store
@@ -89,7 +89,7 @@ const displayedWords = ref([]);
 const firstWord = ref(null);
 const lastWordIdOfPreviousPage = ref(null);
 const router = useRouter(); // Initialize router
-
+const route = useRoute();
 const plusRefs = ref({});
 
 onBeforeUpdate(() => {
@@ -202,7 +202,23 @@ const handleWordSubmit = async (data, originIndex) => {
 
 const initializePage = async () => {
   await pageStore.fetchPage(props.id);
-  loadWords(!props.isEditMode, props.isEditMode);
+
+  // 🚀 CHECK FOR MIGRATION QUERY PARAMS
+  // If 'word' is present in the URL, force instant rendering mode (true)
+  const hasMigrationParams = !!route.query.word;
+
+  // Arguments mapping:
+  // 1. streamWordsInRealTime = !props.isEditMode && !hasMigrationParams
+  // 2. loadPlusSigns = props.isEditMode
+  // 3. isInstant = hasMigrationParams || standard_default (false for streaming view)
+  await loadWords(
+    !props.isEditMode && !hasMigrationParams,
+    props.isEditMode,
+    hasMigrationParams // ⚡ Sets isInstant to true dynamically
+  );
+
+  // Fire off the input element targeting block
+  applyUrlQueryStates();
 };
 
 onMounted(() => {
@@ -235,8 +251,48 @@ const sendReactionToWebSocket = (wordId, reactionType) => {
   pageStore.sendReactionViaWebSocket(wordId, props.id, reactionType);
 };
 
+const applyUrlQueryStates = async () => {
+  const targetWordId = route.query.word;
+  const initialContent = route.query.content;
+
+  // If there are no migration query keys present, skip everything safely
+  if (!targetWordId) return;
+
+  // 1. Wait for Vue to physically render the newly modified array layout elements
+  await nextTick();
+
+  console.log(`🎯 URL query detected! Attempting to restore input behind word: ${targetWordId}`);
+
+  // 2. Scan your active layout refs to locate the matching box tracking position
+  for (const key in plusRefs.value) {
+    const plusInstance = plusRefs.value[key];
+
+    if (plusInstance) {
+      const anchorId = plusInstance.getPrevious();
+
+      // Check if this plus component matches our target anchor word ID
+      if (anchorId && String(anchorId) === String(targetWordId)) {
+        // 3. Force-open the component layout input field and focus it
+        plusInstance.focusInnerInput();
+
+        // 4. Fill the input field with your preserved text content string
+        if (initialContent) {
+          plusInstance.setInputValue(decodeURIComponent(initialContent));
+        }
+
+        // Clean up the URL query parameters so refreshing doesn't keep force-opening it
+        router.replace({ path: route.path, query: {} });
+        break;
+      }
+    }
+  }
+};
+
 watch(() => props.isEditMode, () => {
   loadWords(!props.isEditMode, props.isEditMode);
+  if (props.isEditMode) {
+    applyUrlQueryStates();
+  }
 });
 
 // 2. WATCH THE ROUTE ID: Triggered when user clicks a pagination number
@@ -250,47 +306,40 @@ watch(
   async () => {
     console.log("⚡ Database repagination detected! Relocating active focus rules...");
 
-    // 1. Is there an active edit box open? Let's check our child instances
     let activelyEditingWordId = null;
+    let unsavedText = '';
 
     for (const key in plusRefs.value) {
       const plusInstance = plusRefs.value[key];
 
-      // Check if this specific input is actively open and focused
-      // !!! isComponentEditing is never true!!!
-      console.log(plusInstance.isComponentEditing);
       if (plusInstance && plusInstance.isComponentEditing) {
-        // Grab the anchor word ID this edit box was sitting behind
-        activelyEditingWordId = plusInstance.previous;
-        console.log(activelyEditingWordId);
+        activelyEditingWordId = plusInstance.getPrevious();
+        unsavedText = plusInstance.getInputValue();
         break;
       }
     }
 
     // 2. Fetch the updated state profile for our current position
-    // This tells us if our old records even exist on this page index anymore
     await pageStore.fetchPage(props.id);
 
     // 3. CASE A: User has an active edit box open. Follow the word!
     if (activelyEditingWordId) {
       console.log(`Searching for newly displaced editing anchor word: ${activelyEditingWordId}`);
 
-      // We check if that specific word still belongs on our current page array view
       const stillOnCurrentPage = pageStore.findWordInRecords(activelyEditingWordId);
 
       if (!stillOnCurrentPage) {
-        console.log("YEET YEET");
-        // If it's missing, let's ask the backend or use an API utility to find where it went.
-        // As a highly performant fallback alternative: loop scan or issue a lightweight
-        // GET /api/words/{id}/page-location endpoint to grab the fresh page number.
+        console.log("Word moved pages. Fetching new location from store...");
         try {
-          const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/words/${activelyEditingWordId}/page`);
-          const targetPageId = response.data.pageId;
+          // 💡 DISPATCH TO PINIA STORE ACTION
+          const targetPageId = await pageStore.findMigratedWordPage(activelyEditingWordId);
 
-          router.push(`/pages/${targetPageId}/edit`);
-          return;
+          if (targetPageId) {
+            router.push(`/pages/${targetPageId}/edit?word=${activelyEditingWordId}&content=${encodeURIComponent(unsavedText)}`);
+            return;
+          }
         } catch (err) {
-          console.error("Could not trace migrated word anchor location", err);
+          console.error("Fallback mitigation failed during page tracking trace.");
         }
       }
     }
@@ -301,7 +350,6 @@ watch(
       const suffix = props.isEditMode ? '/edit' : '';
       router.push(`/pages/${pageStore.totalPages}${suffix}`);
     } else {
-      // If we are still within valid bounds, just refresh our displayed words list
       loadWords(!props.isEditMode, props.isEditMode, true);
     }
   }

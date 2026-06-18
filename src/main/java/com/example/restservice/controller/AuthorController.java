@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-@RequestMapping("/authors")
+@RequestMapping("/api/authors")
 @RestController
 public class AuthorController {
     private final ReactionRepository reactionRepository;
@@ -41,9 +41,12 @@ public class AuthorController {
         return ResponseEntity.ok(authors);
     }
 
-    @GetMapping("/{name}")
-    public ResponseEntity<Author> getAuthor(@PathVariable String name) {
+    @GetMapping("/profile/{name}")
+    public ResponseEntity<AuthorDto> getAuthor(@PathVariable String name) {
         Author author = authorService.getAuthorByName(name);
-        return ResponseEntity.ok(author);
+        AuthorDto authorDto = new AuthorDto(author.getUsername());
+        authorDto.setScore(reactionRepository.countLikesMinusDislikes(author.getId()));
+        authorDto.setCreditsSpent(author.getCreditsSpent());
+        return ResponseEntity.ok(authorDto);
     }
 }
