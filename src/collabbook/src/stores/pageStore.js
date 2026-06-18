@@ -79,7 +79,7 @@ export const usePageStore = defineStore('pageStore', {
           if (this.globalUpdatesSubscription) this.globalUpdatesSubscription.unsubscribe();
         }
 
-        // 2. CRITICAL: Wipe out the stale references from Pinia memory completely
+        // 2. Wipe out the stale references from Pinia memory completely
         this.currentSubscription = null;
         this.currentReactionsSubscription = null;
         this.globalUpdatesSubscription = null;

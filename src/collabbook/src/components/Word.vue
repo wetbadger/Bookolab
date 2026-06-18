@@ -60,13 +60,15 @@ const props = defineProps({
 });
 
 const credits = computed(() => props.data.likeCount - props.data.dislikeCount ); // TODO: make this based on std deviations
+const userCredits = computed(() => {
+  return authStore.getCredits();
+});
 
 const emit = defineEmits(['react']);
 
 // Simple local booleans initialized to whatever the server said originally
 const isLikeActive = ref(props.data.userLiked);
 const isDislikeActive = ref(props.data.userDisliked);
-const userCredits = ref(0)
 
 let clickCount = 0;
 
@@ -122,10 +124,6 @@ const countClicks = () => {
   }
   clickCount = 0;
 }
-
-onMounted(() => {
-  userCredits.value = authStore.getCredits();
-});
 </script>
 
 <style scoped>

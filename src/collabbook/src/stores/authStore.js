@@ -28,6 +28,8 @@ export const useAuthStore = defineStore('auth', () => {
       const response = await api.post('/auth/login', credentials);
       setToken(response.data.token);
 
+      await fetchCurrentUser();
+
       return true;
     } catch (err) {
       error.value = 'Login failed. Check your credentials.';
