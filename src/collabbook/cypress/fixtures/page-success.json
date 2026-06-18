@@ -1,0 +1,8 @@
+{
+  "firstWord": {
+    "id": 101,
+    "content": "Hello",
+    "nextWord": { "id": 102, "content": "Cypress Fixtures", "nextWord": null }
+  },
+  "lastWordIdOfPreviousPage": null
+}

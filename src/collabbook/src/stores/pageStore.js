@@ -359,7 +359,8 @@ export const usePageStore = defineStore('pageStore', {
         this.subscribeToPageTopic(id);
 
       } catch (err) {
-        this.error = err;
+        // this.error = err;
+        this.error = "Database Connection Failed";
         console.error("Failed to fetch page data:", err);
       } finally {
         this.loading = false;

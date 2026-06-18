@@ -1,6 +1,7 @@
 package com.example.restservice.service;
 
 import com.example.restservice.dto.RegisterOrLoginAuthorDto;
+import com.example.restservice.exception.UsernameAlreadyExistsException;
 import com.example.restservice.model.Author;
 import com.example.restservice.repository.AuthorRepository;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -26,9 +27,14 @@ public class AuthenticationService {
     }
 
     public Author signup(RegisterOrLoginAuthorDto input) {
+        // 1. Check if the username is already taken
+        if (authorRepository.existsByUsername(input.getUsername())) {
+            throw new UsernameAlreadyExistsException("Username '" + input.getUsername() + "' is already taken.");
+        }
+
+        // 2. Proceed with creation if it's unique
         Author author = new Author(input.getUsername(), passwordEncoder.encode(input.getPassword()));
-        author.setEnabled(true); // TODO: start disabled and do something to verify that they are legit, like check the num of accounts on their ip
-        // sendVerificationEmail would be here
+        author.setEnabled(true);
 
         return authorRepository.save(author);
     }
