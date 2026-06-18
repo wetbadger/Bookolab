@@ -226,7 +226,7 @@ public class WordService {
         long creditsRequired = likes - dislikes;
 
         if (!hasEnoughDeleteCredits(author, creditsRequired)) {
-            System.out.println("\uD83D\uDEAB User does not have enough delete credits.");
+            // System.out.println("\uD83D\uDEAB User does not have enough delete credits.");
             return new DeletionResult(null, null);
         }
 
@@ -291,7 +291,7 @@ public class WordService {
     }
 
     public boolean hasEnoughDeleteCredits(Author author, Long creditsRequired) {
-        System.out.println(author.getUsername() + " spent " + author.getCreditsSpent() + " credits.");
+        // System.out.println(author.getUsername() + " spent " + author.getCreditsSpent() + " credits.");
         return reactionRepository.countLikesMinusDislikes(author.getId()) - author.getCreditsSpent() >= creditsRequired;
     }
 }

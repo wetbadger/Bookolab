@@ -44,9 +44,9 @@ public class PageController {
         // Check for null before extracting the name
         if (authentication != null && authentication.isAuthenticated()) {
             username = authentication.getName();
-            System.out.println("-> Logged in user: " + username);
+            // System.out.println("-> Logged in user: " + username);
         } else {
-            System.out.println("-> Anonymous user browsing page");
+            // System.out.println("-> Anonymous user browsing page");
         }
 
         return pageService.getBoundedPage(id, username);

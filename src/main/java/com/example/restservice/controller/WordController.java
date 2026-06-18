@@ -52,7 +52,7 @@ public class WordController {
             @RequestParam(required = false) String authorName
             
     ) throws InterruptedException {
-        System.out.println(String.format("Word being created... content: %s localId: %s previousWordId: %d previousLocalId: %s", word, localId, previousWordId, previousLocalId));
+        // System.out.println(String.format("Word being created... content: %s localId: %s previousWordId: %d previousLocalId: %s", word, localId, previousWordId, previousLocalId));
         Thread.sleep(1000);
         return wordService.createWord(word, currentPageId, localId, previousWordId, previousLocalId, authorName);
     }
@@ -72,9 +72,9 @@ public class WordController {
 
     @GetMapping("/{wordId}/page")
     public ResponseEntity<Map<String, Long>> getWordPageLocation(@PathVariable Long wordId) {
-        System.out.println("Finding word on page.");
+        // System.out.println("Finding word on page.");
         Long pageId = pageService.findWordPageLocation(wordId);
-        System.out.println("Word " + Long.toString(wordId) + " found on page: " + Long.toString(pageId));
+        // System.out.println("Word " + Long.toString(wordId) + " found on page: " + Long.toString(pageId));
         return ResponseEntity.ok(Map.of("pageId", pageId));
     }
 }

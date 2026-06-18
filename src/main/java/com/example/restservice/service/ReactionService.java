@@ -34,12 +34,12 @@ public class ReactionService {
             Reaction reaction = existing.get();
             if (reaction.getReactionType() == newReactionType) {
                 reactionRepository.delete(reaction);
-                System.out.println("🗑️ DB Action: Removed reaction for Word " + wordId);
+                // System.out.println("🗑️ DB Action: Removed reaction for Word " + wordId);
                 return "REMOVED";
             } else {
                 reaction.setReactionType(newReactionType);
                 reactionRepository.save(reaction);
-                System.out.println("🔄 DB Action: Changed reaction type to " + newReactionType + " for Word " + wordId);
+                // System.out.println("🔄 DB Action: Changed reaction type to " + newReactionType + " for Word " + wordId);
                 return "CHANGED";
             }
         } else {
@@ -58,7 +58,7 @@ public class ReactionService {
 
             reactionRepository.save(reaction);
             reactionRepository.flush();
-            System.out.println("💾 DB Action: Created fresh " + newReactionType + " row for Word " + wordId);
+            // System.out.println("💾 DB Action: Created fresh " + newReactionType + " row for Word " + wordId);
             return "ADDED";
         }
     }

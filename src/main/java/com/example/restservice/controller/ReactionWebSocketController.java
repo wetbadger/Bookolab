@@ -33,7 +33,7 @@ public class ReactionWebSocketController {
     @MessageMapping("/send-reaction")
     public void handleReactionBroadcast(Map<String, Object> payload, java.security.Principal principal) {
         if (principal == null) {
-            System.err.println("🚫 Rejected reaction: Unauthenticated author.");
+            // System.err.println("🚫 Rejected reaction: Unauthenticated author.");
             return;
         }
 
@@ -43,7 +43,7 @@ public class ReactionWebSocketController {
                 .orElseThrow(() -> new UsernameNotFoundException("Author not found"));
 
         if (!authorDetails.isEnabled()) {
-            System.err.println("🚫 Mid-session rejection: Banned author '" + username + "' attempted a reaction.");
+            // System.err.println("🚫 Mid-session rejection: Banned author '" + username + "' attempted a reaction.");
             return;
         }
 
@@ -75,7 +75,7 @@ public class ReactionWebSocketController {
             ReactionUpdateEvent addEvent = new ReactionUpdateEvent(wordId, incomingType, freshIncomingCount, "ADDED");
             messagingTemplate.convertAndSend(destination, addEvent);
 
-            System.out.println("🔄 Reaction CHANGED. Dual broadcast sent for Word ID " + wordId);
+            // System.out.println("🔄 Reaction CHANGED. Dual broadcast sent for Word ID " + wordId);
 
         } else if (!"REJECTED".equals(actionTaken)) {
             // Standard flow for "ADDED" or "REMOVED"
@@ -83,7 +83,7 @@ public class ReactionWebSocketController {
             ReactionUpdateEvent event = new ReactionUpdateEvent(wordId, incomingType, freshCount, actionTaken);
 
             messagingTemplate.convertAndSend(destination, event);
-            System.out.println("❤️ Reaction update broadcasted for Word ID " + wordId + " on Page " + currentPageId);
+            // System.out.println("❤️ Reaction update broadcasted for Word ID " + wordId + " on Page " + currentPageId);
         }
     }
 }

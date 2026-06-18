@@ -131,12 +131,12 @@ public class WordWebSocketController {
         );
         messagingTemplate.convertAndSend("/topic/page/" + nextPageId, (Object) tailBoundaryPatch);
 
-        System.out.println("🔄 Boundary ripple updates sent for Page " + currentPageId);
+        // System.out.println("🔄 Boundary ripple updates sent for Page " + currentPageId);
     }
 
     private String validateAndGetUsername(java.security.Principal principal, String actionType) {
         if (principal == null) {
-            System.err.println("🚫 Rejected message: Unauthenticated user attempting " + actionType + ".");
+            // System.err.println("🚫 Rejected message: Unauthenticated user attempting " + actionType + ".");
             throw new org.springframework.security.access.AccessDeniedException("User is unauthenticated.");
         }
 
@@ -145,7 +145,7 @@ public class WordWebSocketController {
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
 
         if (!userDetails.isEnabled()) {
-            System.err.println("🚫 Mid-session rejection: Banned user '" + username + "' attempted " + actionType + ".");
+            // System.err.println("🚫 Mid-session rejection: Banned user '" + username + "' attempted " + actionType + ".");
             throw new org.springframework.security.access.AccessDeniedException("User account is disabled.");
         }
 

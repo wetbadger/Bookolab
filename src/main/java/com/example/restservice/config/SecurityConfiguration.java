@@ -75,13 +75,9 @@ public class SecurityConfiguration {
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
 
-        // 1. Apply your standard CORS rules to the API pages
+        // Apply standard CORS rules to the API pages
         source.registerCorsConfiguration("/api/pages/*", allowPagesConfig);
         source.registerCorsConfiguration("/api/pages/*/edit", denyEditConfig);
-
-        // 2. Apply your allowed origins to your auth endpoints!
-        // source.registerCorsConfiguration("/auth/**", allowPagesConfig);
-
         source.registerCorsConfiguration("/**", allowPagesConfig);
 
         return source;
