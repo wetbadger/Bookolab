@@ -33,7 +33,6 @@ export const usePageStore = defineStore('pageStore', {
       this.stompClient = new Client({
         brokerURL: WS_BASE_URL,
         reconnectDelay: 5000,
-        // Add the JWT token to the connection headers
         connectHeaders: {
           Authorization: token ? `Bearer ${token}` : ''
         },
@@ -42,29 +41,68 @@ export const usePageStore = defineStore('pageStore', {
         },
       });
 
+      // CATCH THE RATE LIMIT ERROR FRAME BEFORE DISCONNECT
+      this.stompClient.onStompError = (frame) => {
+        const errorMessage = frame.headers['message'] || '';
+        const errorBody = frame.body || '';
+
+        console.error('📡 STOMP Broker Error caught:', errorMessage);
+
+        if (errorMessage.includes("X-Rate-Limit-Exceeded") || errorBody.includes("Word spam detected")) {
+          this.error = "You are typing too fast! Your word-sending privileges have been temporarily throttled.";
+
+          // Optional: Turn off auto-reconnect temporarily so it doesn't immediately try to log back in
+          this.stompClient.reconnectDelay = 0;
+        }
+      };
+
+      // HANDLE THE CLOSURE GRACEFULLY
+      this.stompClient.onWebSocketClose = (closeEvent) => {
+        // FIX: Ignore clean closures (code 1000 means it was intentionally closed)
+        if (closeEvent.code === 1000 || closeEvent.wasClean) {
+          return;
+        }
+        // If it's an unclean drop, set the error state
+        if (!this.error) {
+          this.error = "Connection lost. Attempting to reconnect...";
+        }
+      };
+
       this.stompClient.onConnect = (frame) => {
         // console.log('🎉 Connected to Spring STOMP Broker!');
         const serverUser = frame.headers['user-name'];
         if (serverUser === 'anonymousUser') {
-          // Clear your frontend storage so it stops sending the bad token on refresh
           localStorage.removeItem('token');
         }
+
+        // 🚀 SUBSCRIBE TO PRIVATE RATE LIMITS & USER ERRORS
+        this.stompClient.subscribe('/user/queue/errors', (message) => {
+          // Set your Pinia state error message so your UI components can read and render it
+          this.error = message.body;
+          console.warn("⚠️ Rate limit message received from server:", message.body);
+
+          // Optional: Clear the error notification from the UI after 5 seconds automatically
+          setTimeout(() => {
+            if (this.error === message.body) {
+              this.error = null;
+            }
+          }, 5000);
+        });
+
         if (this.records?.id) {
           this.subscribeToPageTopic(this.records.id);
         }
-        // 🚀 SUBSCRIBE TO GLOBAL STRUCTURAL UPDATES
+
+        // SUBSCRIBE TO GLOBAL STRUCTURAL UPDATES
         if (!this.globalUpdatesSubscription) {
           this.globalUpdatesSubscription = this.stompClient.subscribe('/topic/global-updates', (message) => {
             const payload = JSON.parse(message.body);
-            // console.log("🌍 Global update received:", payload);
-
             if (payload.type === "GLOBAL_REPAGINATION") {
               this.totalPages = payload.totalPages;
-              this.truncationEventTrigger++; // Bump counter to alert watching components
+              this.truncationEventTrigger++;
             }
           });
         }
-
       };
 
       this.stompClient.activate();
@@ -358,18 +396,12 @@ export const usePageStore = defineStore('pageStore', {
       this.loading = true;
       this.error = null;
       try {
-        // 1. Grab the token exactly like you do for WebSockets
         const token = localStorage.getItem('token');
-
-        // 2. Set up headers dynamically if the token exists
         const config = {};
         if (token) {
-          config.headers = {
-            Authorization: `Bearer ${token}`
-          };
+          config.headers = { Authorization: `Bearer ${token}` };
         }
 
-        // 3. Pass the config with headers to your GET request
         const response = await axios.get(`${API_BASE_URL}/api/pages/${id}`, config);
 
         this.records = response.data;
@@ -379,13 +411,17 @@ export const usePageStore = defineStore('pageStore', {
           this.totalPages = response.data.totalPages;
         }
 
-        // Every time you navigate to or load a fresh page, switch the WebSocket room!
         this.subscribeToPageTopic(id);
 
       } catch (err) {
-        // this.error = err;
-        this.error = "Database Connection Failed";
         console.error("Failed to fetch page data:", err);
+
+        // Check if the server returned a 429 status code
+        if (err.response && err.response.status === 429) {
+          this.error = "Too many requests. Please slow down and try again later.";
+        } else {
+          this.error = "Database Connection Failed";
+        }
       } finally {
         this.loading = false;
       }
