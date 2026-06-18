@@ -108,8 +108,16 @@ public class WordService {
         // 1. Determine the previous word anchor based on identity precedence
         Word previousWord = null;
         if (previousLocalId != null && !previousLocalId.isBlank()) {
-            previousWord = wordRepository.findByLocalId(previousLocalId)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Previous word not found via localId: " + previousLocalId));
+            previousWord = wordRepository.findByLocalId(previousLocalId).orElse(null);
+            // There might not be a previous word in memory in the event that the user was rate limited.
+            // In this case they may have kept typing until they received another token.
+            // When this happens, if they type another word, findByLocalId will not find a previous word by local id.
+            if (previousWord == null) {
+                // In this case we just return a dummy word that isn't connected to anything and
+                // does not get saved to the database.
+                return new Word("...", "dummy_word");
+            }
+                    // .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Previous word not found via localId: " + previousLocalId));
         } else if (previousWordId != null) {
             previousWord = wordRepository.findById(previousWordId)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Previous word not found via DB ID: " + previousWordId));

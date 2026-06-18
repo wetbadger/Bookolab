@@ -185,7 +185,11 @@ Get-Content .env | Foreach-Object {
 ```Plaintext
 mvn clean install
 ```
+6. Start redis
 
+```Plaintext
+sudo docker run --name bookolab-redis -p 6379:6379 -d redis
+```
 
 5. Run
 

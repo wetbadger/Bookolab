@@ -47,13 +47,6 @@ export const usePageStore = defineStore('pageStore', {
         const errorBody = frame.body || '';
 
         console.error('📡 STOMP Broker Error caught:', errorMessage);
-
-        if (errorMessage.includes("X-Rate-Limit-Exceeded") || errorBody.includes("Word spam detected")) {
-          this.error = "You are typing too fast! Your word-sending privileges have been temporarily throttled.";
-
-          // Optional: Turn off auto-reconnect temporarily so it doesn't immediately try to log back in
-          this.stompClient.reconnectDelay = 0;
-        }
       };
 
       // HANDLE THE CLOSURE GRACEFULLY

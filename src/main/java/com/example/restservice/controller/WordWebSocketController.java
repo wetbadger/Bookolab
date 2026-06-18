@@ -52,16 +52,7 @@ public class WordWebSocketController {
                 "word", savedDatabaseWord
         );
         // 2. Broadcast the fresh word to the active page right away
-        messagingTemplate.convertAndSend("/topic/page/" + currentPageId, (Object) wordAction);
-
-        // 3. REUSABLE CROSS-PAGE BOUNDARY DETECTION
-        Page currentPage = pageRepository.findById(currentPageId).orElse(null);
-        if (currentPage != null) {
-            Long firstWordId = currentPage.getFirstWord() != null ? currentPage.getFirstWord().getId() : null;
-            Long lastWordId = currentPage.getLastWord() != null ? currentPage.getLastWord().getId() : null;
-
-            detectAndBroadcastBoundaryChanges(currentPageId, firstWordId, lastWordId);
-        }
+        sendMessage(currentPageId, wordAction);
     }
 
     @MessageMapping("/delete-word")
@@ -82,9 +73,13 @@ public class WordWebSocketController {
         );
 
         // 1. Broadcast the deletion update to everyone on the current page
-        messagingTemplate.convertAndSend("/topic/page/" + currentPageId, (Object) deleteMessage);
+        sendMessage(currentPageId, deleteMessage);
+    }
 
-        // 2. REUSABLE CROSS-PAGE BOUNDARY DETECTION (Post-Deletion)
+    private void sendMessage(Long currentPageId, Map<String, Object> wordAction) {
+        messagingTemplate.convertAndSend("/topic/page/" + currentPageId, (Object) wordAction);
+
+        // 3. REUSABLE CROSS-PAGE BOUNDARY DETECTION
         Page currentPage = pageRepository.findById(currentPageId).orElse(null);
         if (currentPage != null) {
             Long firstWordId = currentPage.getFirstWord() != null ? currentPage.getFirstWord().getId() : null;
@@ -105,11 +100,13 @@ public class WordWebSocketController {
         Page nextPage = pageRepository.findById(nextPageId).orElse(null);
 
         while (previousPage != null && previousPage.getFirstWord() == null) {
-            previousPage = pageRepository.findById(previousPageId - 1).orElse(null);
+            previousPageId--;
+            previousPage = pageRepository.findById(previousPageId).orElse(null);
         }
 
         while (nextPage != null && nextPage.getFirstWord() == null) {
-            nextPage = pageRepository.findById(nextPageId + 1).orElse(null);
+            nextPageId++;
+            nextPage = pageRepository.findById(nextPageId).orElse(null);
         }
 
         if (previousPage != null)
