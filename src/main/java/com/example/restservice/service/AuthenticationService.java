@@ -1,6 +1,7 @@
 package com.example.restservice.service;
 
 import com.example.restservice.dto.RegisterOrLoginAuthorDto;
+import com.example.restservice.exception.AnonymousException;
 import com.example.restservice.exception.UsernameAlreadyExistsException;
 import com.example.restservice.model.Author;
 import com.example.restservice.repository.AuthorRepository;
@@ -28,6 +29,9 @@ public class AuthenticationService {
     }
 
     public Author signup(RegisterOrLoginAuthorDto input) {
+        if (input.getUsername().equals("Anonymous")) {
+            throw new AnonymousException("Name cannot be Anonymous");
+        }
         // 1. Check if the username is already taken
         if (authorRepository.existsByUsername(input.getUsername())) {
             throw new UsernameAlreadyExistsException("Username '" + input.getUsername() + "' is already taken.");
@@ -59,7 +63,6 @@ public class AuthenticationService {
     }
 
     public void deleteAccount(Author author) {
-        System.out.println("Deleting "+author.getUsername());
         authorRepository.deleteById(author.getId());
     }
 }
