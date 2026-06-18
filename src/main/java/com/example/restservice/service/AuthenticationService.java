@@ -29,11 +29,11 @@ public class AuthenticationService {
     }
 
     public Author signup(RegisterOrLoginAuthorDto input) {
-        if (input.getUsername().equals("Anonymous")) {
+        if (input.getUsername().equalsIgnoreCase("anonymous")) {
             throw new AnonymousException("Name cannot be Anonymous");
         }
         // 1. Check if the username is already taken
-        if (authorRepository.existsByUsername(input.getUsername())) {
+        if (authorRepository.existsByUsernameIgnoreCase(input.getUsername())) {
             throw new UsernameAlreadyExistsException("Username '" + input.getUsername() + "' is already taken.");
         }
 

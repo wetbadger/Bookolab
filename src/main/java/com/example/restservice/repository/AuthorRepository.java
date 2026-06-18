@@ -9,5 +9,5 @@ import java.util.Optional;
 @Repository
 public interface AuthorRepository extends CrudRepository<Author, Long> {
     Optional<Author> findAuthorByUsername(String username);
-    boolean existsByUsername(String username);
+    boolean existsByUsernameIgnoreCase(String username);
 }
