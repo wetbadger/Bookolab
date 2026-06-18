@@ -66,7 +66,6 @@ const fetchProfileData = async (name) => {
   try {
     // Call your API helper here using 'name'
     author.value = await authStore.fetchPublicProfileByUsername(props.username);
-    console.log(author.value);
   } catch (err) {
     error.value = err.message || "Could not retrieve profile.";
   } finally {
