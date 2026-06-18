@@ -81,7 +81,7 @@ export const usePageStore = defineStore('pageStore', {
       }
     },
 
-// 🚀 ADD THIS: Forced reconnect action to break out of the early return block
+    // Forced reconnect action to break out of the early return block
     reconnectWebSocket() {
       console.log('🔄 Forcing WebSocket reconnection with fresh credentials...');
       this.disconnectWebSocket(); // Kill the unauthenticated connection
@@ -139,7 +139,7 @@ export const usePageStore = defineStore('pageStore', {
       this.records = { ...this.records };
     },
 
-    // 👈 ADD THIS: Dispatches reactions to the /app/send-reaction destination
+    // Dispatches reactions to the /app/send-reaction destination
     sendReactionViaWebSocket(wordId, currentPageId, reactionType) {
       if (this.stompClient && this.stompClient.connected) {
         const payload = {
@@ -257,42 +257,58 @@ export const usePageStore = defineStore('pageStore', {
     },
 
     deleteWordFromRecords(payload) {
-      if (!this.records) {
+      if (!this.records || !this.records.firstWord) {
         return;
       }
 
-      let previousWordId = payload.previousWordId;
-      let nextWord = payload.nextWord;
+      const { previousWordId, nextWord } = payload;
+      const firstWordOfNextPage = this.records.lastWord?.nextWordId ?? null;
 
-      let firstWordOfNextPage = this.records.lastWord?.nextWordId;
-      if (nextWord == null) {
-        // This is the last word of the current page.
-        this.records.lastWord = null;
-      }
-
+      // Case 1: Deleting the very first word of this page
       if (this.records.lastWordIdOfPreviousPage === previousWordId) {
         this.records.firstWord = this.records.firstWord.nextWord;
-      } else {
-        let current = this.records.firstWord;
-        let prev = null;
-        while (current) {
-          if (current.id === previousWordId) {
-            // const temp = current?.nextWord?.nextWord;
-            current.nextWord = nextWord;
-            // nextWord.nextWord = temp?.nextWord;
-            if (!this.records.lastWord) {
-              this.records.lastWord = {
-                "id": current.id,
-                "content": current.content,
-                "nextWordId": firstWordOfNextPage,
-                "previousWordId": prev.id
-              }
-            }
-            break;
-          }
-          prev = current;
-          current = current.nextWord;
+
+        // Edge case: page is now completely empty
+        if (!this.records.firstWord) {
+          this.records.lastWord = null;
         }
+        return;
+      }
+
+      // Case 2: Deleting a word inside the page or the last word
+      let current = this.records.firstWord;
+      let prev = null;
+
+      while (current) {
+        // Find the word BEFORE the one we want to delete
+        if (current.id === previousWordId) {
+
+          // Target the word to be deleted
+          let wordToDelete = current.nextWord;
+
+          if (wordToDelete) {
+            // Link current word to the word AFTER the deleted one, preserving the chain
+            current.nextWord = wordToDelete.nextWord;
+          } else {
+            // Edge case: nothing was after current anyway
+            current.nextWord = null;
+          }
+
+          // Rebuild lastWord if we just deleted the end of the list
+          if (current.nextWord === null) {
+            this.records.lastWord = {
+              "id": current.id,
+              "content": current.content,
+              "nextWordId": firstWordOfNextPage,
+              "previousWordId": prev ? prev.id : this.records.lastWordIdOfPreviousPage,
+              "dislikeCount": current.dislikeCount,
+              "likeCount": current.likeCount
+            };
+          }
+          break;
+        }
+        prev = current;
+        current = current.nextWord;
       }
     },
 

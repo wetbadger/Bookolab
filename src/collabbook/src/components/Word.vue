@@ -78,7 +78,10 @@ const deleteWord = () => {
 };
 
 const toggleLike = () => {
-  isLikeActive.value = !isLikeActive.value; // Simple true/false toggle
+  if (!props.isAuthenticated || authStore.user.username === props.data.authorName) {
+    return;
+  }
+  isLikeActive.value = !isLikeActive.value;
   emit('react', props.data.id, 'LIKE');
   if (isLikeActive.value && isDislikeActive.value) {
     isDislikeActive.value = false;
@@ -86,7 +89,10 @@ const toggleLike = () => {
 };
 
 const toggleDislike = () => {
-  isDislikeActive.value = !isDislikeActive.value; // Simple true/false toggle
+  if (!props.isAuthenticated || authStore.user.username === props.data.authorName) {
+    return;
+  }
+  isDislikeActive.value = !isDislikeActive.value;
   emit('react', props.data.id, 'DISLIKE');
   if (isLikeActive.value && isDislikeActive.value) {
     isLikeActive.value = false;

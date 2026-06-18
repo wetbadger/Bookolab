@@ -63,6 +63,7 @@
       </span>
     </template>
   </div>
+  <Footer />
 </template>
 
 <script setup>
@@ -75,6 +76,7 @@ import Word from '@/components/Word.vue';
 import Plus from '@/components/Plus.vue';
 import Profile from '@/components/Profile.vue';
 import Paginator from "@/components/Pagenator.vue";
+import Footer from "@/components/Footer.vue";
 
 const props = defineProps({
   id: { type: Number, required: true },
@@ -203,7 +205,7 @@ const handleWordSubmit = async (data, originIndex) => {
 const initializePage = async () => {
   await pageStore.fetchPage(props.id);
 
-  // 🚀 CHECK FOR MIGRATION QUERY PARAMS
+  // CHECK FOR MIGRATION QUERY PARAMS
   // If 'word' is present in the URL, force instant rendering mode (true)
   const hasMigrationParams = !!route.query.word;
 
@@ -295,12 +297,12 @@ watch(() => props.isEditMode, () => {
   }
 });
 
-// 2. WATCH THE ROUTE ID: Triggered when user clicks a pagination number
+// WATCH THE ROUTE ID: Triggered when user clicks a pagination number
 watch(() => props.id, () => {
   initializePage();
 });
 
-// 🚀 WATCH FOR GLOBAL CRON RE-PAGINATION EVENTS
+// WATCH FOR GLOBAL CRON RE-PAGINATION EVENTS
 watch(
   () => pageStore.truncationEventTrigger,
   async () => {
@@ -331,7 +333,7 @@ watch(
       if (!stillOnCurrentPage) {
         console.log("Word moved pages. Fetching new location from store...");
         try {
-          // 💡 DISPATCH TO PINIA STORE ACTION
+          // DISPATCH TO PINIA STORE ACTION
           const targetPageId = await pageStore.findMigratedWordPage(activelyEditingWordId);
 
           if (targetPageId) {

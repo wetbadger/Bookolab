@@ -32,7 +32,6 @@ import { usePageStore } from '@/stores/pageStore';
 
 const emit = defineEmits(['submit']);
 const props = defineProps({
-  // Enforces data mapping discipline matching Spring Boot's Long vs String params
   previous: {
     type: Number,
     default: null
@@ -54,7 +53,6 @@ const props = defineProps({
   }
 });
 
-const route = useRoute();
 const pageStore = usePageStore();
 
 const isComponentEditing = ref(false);
@@ -94,9 +92,8 @@ const submitWord = () => {
   if (!localId) localId = pageStore.generateSimpleId();
   const currentLocalId = localId;
   const currentPageId = props.currentPageId;
-  // const currentPageId = Number(route.params.id);
 
-  // 1. OPTIMISTIC PASS: Broadcast immediately to layout to construct the next inline button
+  // OPTIMISTIC PASS: Broadcast immediately to layout to construct the next inline button
   emit('submit', {
     id: null,
     localId: currentLocalId,

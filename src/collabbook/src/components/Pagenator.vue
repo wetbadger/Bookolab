@@ -26,7 +26,7 @@ export default {
     }
   },
   computed: {
-    // 👈 ADD THIS: Pull dynamic page bounds seamlessly from your global store
+    // Pull dynamic page bounds seamlessly from your global store
     totalRows() {
       return this.pageStore.totalPages;
     },

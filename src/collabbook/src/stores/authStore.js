@@ -9,7 +9,7 @@ export const useAuthStore = defineStore('auth', () => {
   const user = ref(null);
   const error = ref(null);
 
-  // 🚀 1. Initialize to true if a token exists (we need to verify it), otherwise false
+  // Initialize to true if a token exists (we need to verify it), otherwise false
   const isAuthLoading = ref(!!localStorage.getItem('token'));
 
   const isAuthenticated = computed(() => {
@@ -48,11 +48,11 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function fetchCurrentUser() {
     if (!isAuthenticated.value) {
-      isAuthLoading.value = false; // 🚀 Safeguard: stop loading if token is invalid/missing
+      isAuthLoading.value = false; // Safeguard: stop loading if token is invalid/missing
       return null;
     }
 
-    isAuthLoading.value = true; // 🚀 Ensure loading state turns on when fetching
+    isAuthLoading.value = true; // Ensure loading state turns on when fetching
     try {
       const response = await api.get('/api/authors/me');
       user.value = response.data;
@@ -62,7 +62,7 @@ export const useAuthStore = defineStore('auth', () => {
       logout();
       return null;
     } finally {
-      isAuthLoading.value = false; // 🚀 Always turn off loading whether it succeeds or fails
+      isAuthLoading.value = false; // Always turn off loading whether it succeeds or fails
     }
   }
 
@@ -97,7 +97,7 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem('token');
   }
 
-  // 🚀 2. Remember to expose 'isAuthLoading' to components
+  // Remember to expose 'isAuthLoading' to components
   return {
     token,
     user,
