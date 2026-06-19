@@ -73,6 +73,7 @@ describe('Page Layout and Navigation E2E Tests', () => {
     // 3. Fill out the signup form
     cy.get('#username').type('e2e_author');
     cy.get('#password').type('SuperSecret123!');
+    cy.get('#confirm-password').type('SuperSecret123!')
 
     // 4. Submit the form
     cy.get('form').submit();
