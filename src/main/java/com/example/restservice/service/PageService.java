@@ -4,18 +4,29 @@ import com.example.restservice.dto.BoundedPageResponse;
 import com.example.restservice.dto.FlatLinkedWordDto;
 import com.example.restservice.dto.PageResponseDto;
 import com.example.restservice.dto.WordNodeDto;
+import com.example.restservice.enums.ReactionType;
+import com.example.restservice.model.Author;
 import com.example.restservice.model.Page;
 import com.example.restservice.model.Word;
+import com.example.restservice.repository.AuthorRepository;
 import com.example.restservice.repository.PageRepository;
+import com.example.restservice.repository.ReactionRepository;
 import com.example.restservice.repository.WordRepository;
 
 import org.jspecify.annotations.NullMarked;
 import org.springframework.http.HttpStatus;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @NullMarked
@@ -23,10 +34,18 @@ public class PageService {
 
     private final PageRepository pageRepository;
     private final WordRepository wordRepository;
+    private final AuthorRepository authorRepository;
+    private final ReactionRepository reactionRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
-    public PageService(PageRepository pageRepository, WordRepository wordRepository) {
+    public PageService(PageRepository pageRepository, WordRepository wordRepository,
+                       AuthorRepository authorRepository, ReactionRepository reactionRepository,
+                       SimpMessagingTemplate messagingTemplate) { // 👈 Inject template
         this.pageRepository = pageRepository;
         this.wordRepository = wordRepository;
+        this.authorRepository = authorRepository;
+        this.reactionRepository = reactionRepository;
+        this.messagingTemplate = messagingTemplate;
     }
 
     @Transactional(readOnly = true)
@@ -49,16 +68,22 @@ public class PageService {
         Word last = page.getLastWord();
 
         Long firstNextId = (first != null && first.getNextWord() != null) ? first.getNextWord().getId() : null;
-        Long firstPreviousWordId = wordRepository.findByNextWord(first)
-                .map(Word::getId)
-                .orElse(null); // Returns null if this word is the head of the list
+        Long firstPreviousWordId = wordRepository.findByNextWord(first).map(Word::getId).orElse(null);
         Long lastNextId = (last != null && last.getNextWord() != null) ? last.getNextWord().getId() : null;
-        Long lastPreviousWordId = wordRepository.findByNextWord(last)
-                .map(Word::getId)
-                .orElse(null); // Returns null if this word is the head of the list
+        Long lastPreviousWordId = wordRepository.findByNextWord(last).map(Word::getId).orElse(null);
 
         FlatLinkedWordDto firstWordDto = first != null ? new FlatLinkedWordDto(first.getId(), first.getContent(), firstNextId, firstPreviousWordId) : null;
         FlatLinkedWordDto lastWordDto = last != null ? new FlatLinkedWordDto(last.getId(), last.getContent(), lastNextId, lastPreviousWordId) : null;
+
+        // 🚀 Add individual checks for the flat layout boundaries
+        if (firstWordDto != null) {
+            firstWordDto.setLikeCount(reactionRepository.countByWordIdAndReactionType(first.getId(), com.example.restservice.enums.ReactionType.LIKE));
+            firstWordDto.setDislikeCount(reactionRepository.countByWordIdAndReactionType(first.getId(), com.example.restservice.enums.ReactionType.DISLIKE));
+        }
+        if (lastWordDto != null) {
+            lastWordDto.setLikeCount(reactionRepository.countByWordIdAndReactionType(last.getId(), com.example.restservice.enums.ReactionType.LIKE));
+            lastWordDto.setDislikeCount(reactionRepository.countByWordIdAndReactionType(last.getId(), com.example.restservice.enums.ReactionType.DISLIKE));
+        }
 
         return new PageResponseDto(page.getId(), firstWordDto, lastWordDto);
     }
@@ -74,55 +99,122 @@ public class PageService {
     function but goes to the cache instead. If the page has no changes, we simply return the cached version.
     */
     @Transactional(readOnly = true)
-    public BoundedPageResponse getBoundedPage(Long id) {
+    public BoundedPageResponse getBoundedPage(Long id, String username) {
+        Author author = null;
+        if (username != null) {
+            author = authorRepository.findAuthorByUsername(username)
+                    .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+        }
+
         Page page = pageRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Page not found"));
 
         Word currentEntity = page.getFirstWord();
         Word lastEntity = page.getLastWord();
         Long lastWordIdOfPreviousPage = null;
+        WordNodeDto headDto = null;
+        FlatLinkedWordDto flatLastWord = null;
 
-        if (currentEntity == null || lastEntity == null) {
-            return new BoundedPageResponse(page.getId(), null, null, null);
-        }
+        if (currentEntity != null && lastEntity != null) {
+            // 1. Create the head of our JSON tree
+            String headAuthor = currentEntity.getAuthor() != null ? currentEntity.getAuthor().getUsername() : "Anonymous";
+            headDto = new WordNodeDto(currentEntity.getId(), currentEntity.getContent(), headAuthor);
+            WordNodeDto currentDto = headDto;
 
-        // 1. Create the head of our JSON tree
-        WordNodeDto headDto = new WordNodeDto(currentEntity.getId(), currentEntity.getContent());
-        WordNodeDto currentDto = headDto;
+            // Keep a list of all Node DTOs we generate so we can enrich them in batch later
+            List<WordNodeDto> allDtosOnPage = new java.util.ArrayList<>();
+            allDtosOnPage.add(headDto);
 
-        // 2. Loop through the linked list until we process the last word of THIS page
-        while (currentEntity != null) {
-            if (currentEntity.getId().equals(lastEntity.getId())) {
-                break; 
+            // 2. Loop through the linked list until we process the last word of THIS page
+            while (currentEntity != null) {
+                if (currentEntity.getId().equals(lastEntity.getId())) {
+                    break;
+                }
+
+                currentEntity = currentEntity.getNextWord();
+
+                if (currentEntity != null) {
+                    String currentAuthor = currentEntity.getAuthor() != null ? currentEntity.getAuthor().getUsername() : "Anonymous";
+                    WordNodeDto nextDto = new WordNodeDto(currentEntity.getId(), currentEntity.getContent(), currentAuthor);
+                    currentDto.setNextWord(nextDto);
+                    currentDto = nextDto;
+                    allDtosOnPage.add(nextDto); // 👈 Track every node built
+                }
             }
 
-            currentEntity = currentEntity.getNextWord();
-            
-            if (currentEntity != null) {
-                WordNodeDto nextDto = new WordNodeDto(currentEntity.getId(), currentEntity.getContent());
-                currentDto.setNextWord(nextDto);
-                currentDto = nextDto;
+
+            // Batch-enrich all generated word DTO nodes with their reaction stats
+            if (!allDtosOnPage.isEmpty()) {
+                List<Long> wordIdsList = allDtosOnPage.stream().map(WordNodeDto::getId).toList();
+                List<Map<String, Object>> rawCounts = reactionRepository.getReactionCountsForWords(wordIdsList);
+
+                // Define lookups with wider scope so the loop can safely read them
+                java.util.Set<Long> likedWordIdsSet = java.util.Collections.emptySet();
+                java.util.Set<Long> dislikedWordIdsSet = java.util.Collections.emptySet();
+
+                if (author != null) {
+                    // Fetching the user's personal interactions
+                    likedWordIdsSet = new java.util.HashSet<>(
+                            reactionRepository.findWordIdsReactedByUser(author.getId(), wordIdsList, ReactionType.LIKE)
+                    );
+                    dislikedWordIdsSet = new java.util.HashSet<>(
+                            reactionRepository.findWordIdsReactedByUser(author.getId(), wordIdsList, ReactionType.DISLIKE)
+                    );
+                }
+
+                for (WordNodeDto dto : allDtosOnPage) {
+                    long likes = rawCounts.stream()
+                            .filter(m -> m.get("wordId").equals(dto.getId()) && m.get("type") == com.example.restservice.enums.ReactionType.LIKE)
+                            .mapToLong(m -> (Long) m.get("cnt")).findFirst().orElse(0L);
+
+                    long dislikes = rawCounts.stream()
+                            .filter(m -> m.get("wordId").equals(dto.getId()) && m.get("type") == com.example.restservice.enums.ReactionType.DISLIKE)
+                            .mapToLong(m -> (Long) m.get("cnt")).findFirst().orElse(0L);
+
+                    dto.setLikeCount(likes);
+                    dto.setDislikeCount(dislikes);
+
+                    // Set the boolean states using O(1) set lookups
+                    dto.setUserLiked(likedWordIdsSet.contains(dto.getId()));
+                    dto.setUserDisliked(dislikedWordIdsSet.contains(dto.getId()));
+                }
+            }
+
+            // 3. Map lastEntity directly to a flat DTO representation
+            Long nextId = (lastEntity.getNextWord() != null) ? lastEntity.getNextWord().getId() : null;
+            Long previousWordId = wordRepository.findByNextWord(currentEntity)
+                    .map(Word::getId)
+                    .orElse(null);
+            flatLastWord = new FlatLinkedWordDto(lastEntity.getId(), lastEntity.getContent(), nextId, previousWordId);
+
+            // Enforce counts on the standalone flatLastWord DTO as well
+            if (flatLastWord != null) {
+                flatLastWord.setLikeCount(reactionRepository.countByWordIdAndReactionType(lastEntity.getId(), com.example.restservice.enums.ReactionType.LIKE));
+                flatLastWord.setDislikeCount(reactionRepository.countByWordIdAndReactionType(lastEntity.getId(), com.example.restservice.enums.ReactionType.DISLIKE));
             }
         }
 
-        // 3. Map lastEntity directly to a flat DTO representation
-        Long nextId = (lastEntity.getNextWord() != null) ? lastEntity.getNextWord().getId() : null;
-        // Look up previous ID efficiently using the repository query
-        Long previousWordId = wordRepository.findByNextWord(currentEntity)
-                .map(Word::getId)
-                .orElse(null); // Returns null if this word is the head of the list
-        FlatLinkedWordDto flatLastWord = new FlatLinkedWordDto(lastEntity.getId(), lastEntity.getContent(), nextId, previousWordId);
-
-        // 4. Get the last word id of the previous page. 
-        // This will come in handy when inserting words at the beginning of pages.
+        // 4. Get the last word id of the previous page.
         if (id > 1) {
-            lastWordIdOfPreviousPage = pageRepository.findById(id - 1)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Page not found"))
-                .getLastWord()
-                .getId();
+            Page previousPage = pageRepository.findById(id - 1)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Page not found"));
+
+            Word lastWordOfPreviousPage = previousPage.getLastWord();
+
+            // The previous page may be empty if someone deleted all the words on it
+            // In that case, we look for the first populated previous page.
+            int i = 2;
+            while (lastWordOfPreviousPage == null && id - i > 0) {
+                previousPage = pageRepository.findById(id - i)
+                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Page not found"));
+                lastWordOfPreviousPage = previousPage.getLastWord();
+                i += 1;
+            }
+            if (lastWordOfPreviousPage != null)
+                lastWordIdOfPreviousPage = lastWordOfPreviousPage.getId();
         }
 
-        return new BoundedPageResponse(page.getId(), headDto, flatLastWord, lastWordIdOfPreviousPage);
+        return new BoundedPageResponse(page.getId(), headDto, flatLastWord, lastWordIdOfPreviousPage, pageRepository.count());
     }
 
     @Transactional
@@ -138,7 +230,7 @@ public class PageService {
                     existingPage.setLastWord(pageDetails.getLastWord());
                     return pageRepository.save(existingPage);
                 })
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Page not found")); 
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Page not found"));
                 // Note: Fixed an error in your original code where update/delete said "Course not found"
     }
 
@@ -171,8 +263,9 @@ public class PageService {
         if (currentWord == null) return; // DB is completely empty
 
         // 2. Wipe old pages and FORCE a flush to free up the unique database constraints immediately
-        pageRepository.deleteAll();
-        pageRepository.flush();
+        // pageRepository.deleteAll();
+        // pageRepository.flush();
+        pageRepository.truncateAndResetSequence();
 
         // 3. Setup traversal and page tracking variables
         Page currentPage = new Page();
@@ -210,5 +303,23 @@ public class PageService {
             currentPage.setLastWord(previousWord);
             pageRepository.save(currentPage);
         }
+
+        // 🚀 6. BROADCAST THE PAGINATION CHANGE TO ALL USERS GLOBALLY
+        long totalPagesNow = pageRepository.count();
+        Map<String, Object> syncPayload = Map.of(
+                "type", "GLOBAL_REPAGINATION",
+                "totalPages", totalPagesNow
+        );
+
+        // Broadcast to a top-level global topic
+        messagingTemplate.convertAndSend("/topic/global-updates", (Object) syncPayload);
+    }
+    @Transactional(readOnly = true)
+    public Long findWordPageLocation(Long wordId) {
+        return pageRepository.findPageIdByWordId(wordId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Word ID " + wordId + " does not belong to any active page bounds."
+                ));
     }
 }

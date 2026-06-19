@@ -1,0 +1,6 @@
+.auth-container { max-width: 400px; margin: 50px auto; padding: 20px; border: 1px solid #ccc; border-radius: 8px; }
+.auth-form { display: flex; flex-direction: column; gap: 15px; }
+.form-group { display: flex; flex-direction: column; gap: 5px; text-align: left; }
+.form-group input { padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+.error-alert { color: red; background: #ffe6e6; padding: 10px; border-radius: 4px; font-size: 0.9em; }
+.auth-switch { text-align: center; margin-top: 15px; font-size: 0.9em; }

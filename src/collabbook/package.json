@@ -20,12 +20,14 @@
     "@stomp/stompjs": "^7.3.0",
     "bootstrap": "^5.3.8",
     "bootstrap-vue-next": "^0.45.5",
+    "jwt-decode": "^4.0.0",
     "pinia": "^3.0.4",
     "vue": "^3.5.38",
     "vue-router": "^5.0.4"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@pinia/testing": "^1.0.3",
     "@vitejs/plugin-vue": "^6.0.6",
     "@vitejs/plugin-vue-jsx": "^5.1.5",
     "@vitest/eslint-plugin": "^1.6.16",
@@ -44,7 +46,7 @@
     "start-server-and-test": "^2.1.5",
     "vite": "^8.0.8",
     "vite-plugin-vue-devtools": "^8.1.1",
-    "vitest": "^4.1.4"
+    "vitest": "^4.1.9"
   },
   "engines": {
     "node": "^20.19.0 || >=22.12.0"

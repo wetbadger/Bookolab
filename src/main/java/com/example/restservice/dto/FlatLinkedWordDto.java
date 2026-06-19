@@ -5,6 +5,8 @@ public class FlatLinkedWordDto {
     private String content;
     private Long nextWordId;
     private Long previousWordId;
+    private long likeCount = 0;
+    private long dislikeCount = 0;
 
     public FlatLinkedWordDto(Long id, String content, Long nextWordId, Long previousWordId) {
         this.id = id;
@@ -20,4 +22,8 @@ public class FlatLinkedWordDto {
     public void setNextWordId(Long nextWordId) { this.nextWordId = nextWordId; }
     public Long getPreviousWordId() { return previousWordId; }
     public void setPreviousWordId(Long previousWordId) { this.previousWordId = previousWordId; }
+    public void setLikeCount(long likeCount) { this.likeCount = likeCount; }
+    public void setDislikeCount(long dislikeCount) { this.dislikeCount = dislikeCount; }
+    public long getLikeCount() { return likeCount; }
+    public long getDislikeCount() { return dislikeCount; }
 }

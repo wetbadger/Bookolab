@@ -16,27 +16,116 @@ export const usePageStore = defineStore('pageStore', {
     nextPageFirstWordId: null,
     stompClient: null,
     currentWebSocketSubscription: null,
-    onRemoteWordAddedCallback: null
+    currentReactionsSubscription: null,
+    onRemoteWordAddedCallback: null,
+    totalPages: 1,
+    truncationEventTrigger: 0,
+    globalUpdatesSubscription: null,
+    creditsUsedThisWindow: 0, // returns to 0 on refresh
+    globalCounter: 0 // TODO: use for id generation
   }),
   actions: {
     initializeTestWebSocket() {
       if (this.stompClient) return;
 
+      // Assuming your JWT is saved in localStorage or another store
+      const token = localStorage.getItem('token');
+
       this.stompClient = new Client({
         brokerURL: WS_BASE_URL,
         reconnectDelay: 5000,
-        debug: function (str) { console.log('STOMP: ' + str); },
+        connectHeaders: {
+          Authorization: token ? `Bearer ${token}` : ''
+        },
+        debug: function (str) {
+          // console.log('STOMP: ' + str);
+        },
       });
 
+      // CATCH THE RATE LIMIT ERROR FRAME BEFORE DISCONNECT
+      this.stompClient.onStompError = (frame) => {
+        const errorMessage = frame.headers['message'] || '';
+        const errorBody = frame.body || '';
+
+        console.error('📡 STOMP Broker Error caught:', errorMessage);
+      };
+
+      // HANDLE THE CLOSURE GRACEFULLY
+      this.stompClient.onWebSocketClose = (closeEvent) => {
+        // FIX: Ignore clean closures (code 1000 means it was intentionally closed)
+        if (closeEvent.code === 1000 || closeEvent.wasClean) {
+          return;
+        }
+        // If it's an unclean drop, set the error state
+        if (!this.error) {
+          this.error = "Connection lost. Attempting to reconnect...";
+        }
+      };
+
       this.stompClient.onConnect = (frame) => {
-        console.log('🎉 Connected to Spring STOMP Broker!');
-        // If we already loaded a page before the socket connected, subscribe to it immediately
+        // console.log('🎉 Connected to Spring STOMP Broker!');
+        const serverUser = frame.headers['user-name'];
+        if (serverUser === 'anonymousUser') {
+          localStorage.removeItem('token');
+        }
+
+        // 🚀 SUBSCRIBE TO PRIVATE RATE LIMITS & USER ERRORS
+        this.stompClient.subscribe('/user/queue/errors', (message) => {
+          // Set your Pinia state error message so your UI components can read and render it
+          this.error = message.body;
+          console.warn("⚠️ Rate limit message received from server:", message.body);
+
+          // Optional: Clear the error notification from the UI after 5 seconds automatically
+          setTimeout(() => {
+            if (this.error === message.body) {
+              this.error = null;
+            }
+          }, 5000);
+        });
+
         if (this.records?.id) {
           this.subscribeToPageTopic(this.records.id);
+        }
+
+        // SUBSCRIBE TO GLOBAL STRUCTURAL UPDATES
+        if (!this.globalUpdatesSubscription) {
+          this.globalUpdatesSubscription = this.stompClient.subscribe('/topic/global-updates', (message) => {
+            const payload = JSON.parse(message.body);
+            if (payload.type === "GLOBAL_REPAGINATION") {
+              this.totalPages = payload.totalPages;
+              this.truncationEventTrigger++;
+            }
+          });
         }
       };
 
       this.stompClient.activate();
+    },
+    // Safe disconnection action
+    disconnectWebSocket() {
+      if (this.stompClient) {
+        // 1. Only attempt to transmit unsubscribe frames if the client is actively online
+        if (this.stompClient.connected) {
+          if (this.currentSubscription) this.currentSubscription.unsubscribe();
+          if (this.currentReactionsSubscription) this.currentReactionsSubscription.unsubscribe();
+          if (this.globalUpdatesSubscription) this.globalUpdatesSubscription.unsubscribe();
+        }
+
+        // 2. Wipe out the stale references from Pinia memory completely
+        this.currentSubscription = null;
+        this.currentReactionsSubscription = null;
+        this.globalUpdatesSubscription = null;
+
+        this.stompClient.deactivate();
+        this.stompClient = null;
+      }
+    },
+
+    // Forced reconnect action to break out of the early return block
+    reconnectWebSocket() {
+      // console.log('🔄 Forcing WebSocket reconnection with fresh credentials...');
+      this.disconnectWebSocket(); // Kill the unauthenticated connection
+      this.initializeTestWebSocket(); // Fire up a completely pristine authenticated one
     },
     subscribeToPageTopic(pageId) {
       if (!this.stompClient || !this.stompClient.connected) return;
@@ -48,34 +137,82 @@ export const usePageStore = defineStore('pageStore', {
       this.currentSubscription = this.stompClient.subscribe(`/topic/page/${pageId}`, (message) => {
         // Fix: Parse the message body into our inboundPayload variable
         const inboundPayload = JSON.parse(message.body);
-        console.log("🔥 Incoming WebSocket payload caught:", inboundPayload);
+        // console.log("🔥 Incoming WebSocket payload caught:", inboundPayload);
 
         // Check if the payload is a cross-page boundary patch command
-        if (inboundPayload.type) {
+        if (inboundPayload.type === "PREVIOUS_PAGE_TAIL_CHANGED" ||
+            inboundPayload.type === "NEXT_PAGE_HEAD_CHANGED") {
           this.handleCrossPageBoundaryPatch(inboundPayload);
         } else {
           // Otherwise, it's a standard word item for this page!
-          this.insertWordIntoRecords(inboundPayload);
+          if (inboundPayload.type === "CREATE_WORD")
+            this.insertWordIntoRecords(inboundPayload.word);
+          else if (inboundPayload.type === "DELETE_WORD")
+            this.deleteWordFromRecords(inboundPayload);
         }
       });
+
+      // --- CHANNEL 2: Live Reaction Updates 👈 ADD THIS ---
+      this.currentReactionsSubscription = this.stompClient.subscribe(`/topic/page/${pageId}/reactions`, (message) => {
+        const reactionEvent = JSON.parse(message.body);
+        // console.log("❤️ Incoming live reaction caught:", reactionEvent);
+
+        this.updateWordReactionCount(reactionEvent.wordId, reactionEvent.reactionType, reactionEvent.totalCount);
+      });
+    },
+    updateWordReactionCount(wordId, reactionType, totalCount) {
+      if (!this.records) return;
+
+      let current = this.records.firstWord;
+      while (current) {
+        if (Number(current.id) === Number(wordId)) {
+          if (reactionType === 'LIKE') {
+            current.likeCount = totalCount;
+          } else if (reactionType === 'DISLIKE') {
+            current.dislikeCount = totalCount;
+          }
+          break;
+        }
+        current = current.nextWord;
+      }
+
+      this.records = { ...this.records };
+    },
+
+    // Dispatches reactions to the /app/send-reaction destination
+    sendReactionViaWebSocket(wordId, currentPageId, reactionType) {
+      if (this.stompClient && this.stompClient.connected) {
+        const payload = {
+          wordId: wordId,
+          currentPageId: currentPageId,
+          reactionType: reactionType
+        };
+        this.stompClient.publish({
+          destination: '/app/send-reaction',
+          body: JSON.stringify(payload)
+        });
+        // console.log("📡 Dispatched reaction action to backend:", payload);
+      } else {
+        // console.error("STOMP Client disconnected. Cannot send reaction.");
+      }
     },
     // Processes cross-page linking updates from neighboring tabs
     handleCrossPageBoundaryPatch(patch) {
       if (!this.records) return;
 
       if (patch.type === "NEXT_PAGE_HEAD_CHANGED") {
-        console.log(`📡 Patching out-bound link pointer -> newNextWordId: ${patch.newNextWordId}`);
+        // console.log(`📡 Patching out-bound link pointer -> newNextWordId: ${patch.newNextWordId}`);
         // 1. Update the metadata link tracking pointer
         this.nextPageFirstWordId = patch.newNextWordId;
-        
+
         // 2. Patch the actual active lastWord state instance object link directly
         if (this.records.lastWord) {
           this.records.lastWord.nextWordId = patch.newNextWordId;
         }
-      } 
-      
+      }
+
       else if (patch.type === "PREVIOUS_PAGE_TAIL_CHANGED") {
-        console.log(`📡 Patching in-bound fallback anchor -> newLastWordIdOfPreviousPage: ${patch.newLastWordIdOfPreviousPage}`);
+        // console.log(`📡 Patching in-bound fallback anchor -> newLastWordIdOfPreviousPage: ${patch.newLastWordIdOfPreviousPage}`);
         // Update the fallback tracking pointer
         this.records.lastWordIdOfPreviousPage = patch.newLastWordIdOfPreviousPage;
       }
@@ -87,7 +224,7 @@ export const usePageStore = defineStore('pageStore', {
 
       // 1. Conflict Resolution: Prevent duplicate insertions
       if (this.findWordInRecords(newWord.id || newWord.localId)) {
-        console.log(`✅ Word "${newWord.content}" already accounted for in store.`);
+        // console.log(`✅ Word "${newWord.content}" already accounted for in store.`);
         return;
       }
 
@@ -96,7 +233,10 @@ export const usePageStore = defineStore('pageStore', {
         id: newWord.id,
         localId: newWord.localId,
         content: newWord.content,
-        nextWord: null
+        nextWord: null,
+        authorName: newWord.author ? newWord.author.username : 'Anonymous',
+        likeCount: 0,
+        dislikeCount: 0
       };
 
       // 3. CASE A: List is completely empty
@@ -120,9 +260,9 @@ export const usePageStore = defineStore('pageStore', {
 
       // 5. CASE C: Appended to the very end of THIS page
       // Triggered if nextWord is completely null OR if it points to the start of the NEXT page
-      const isPointingToNextPage = newWord.nextWord && 
+      const isPointingToNextPage = newWord.nextWord &&
                                    Number(newWord.nextWord.id) === Number(this.nextPageFirstWordId);
-                                   
+
       if (!newWord.nextWord || isPointingToNextPage) {
         // Find the current tail node on this page by navigating the active memory pointers
         let tail = this.records.firstWord;
@@ -156,6 +296,62 @@ export const usePageStore = defineStore('pageStore', {
       }
     },
 
+    deleteWordFromRecords(payload) {
+      if (!this.records || !this.records.firstWord) {
+        return;
+      }
+
+      const { previousWordId, nextWord } = payload;
+      const firstWordOfNextPage = this.records.lastWord?.nextWordId ?? null;
+
+      // Case 1: Deleting the very first word of this page
+      if (this.records.lastWordIdOfPreviousPage === previousWordId) {
+        this.records.firstWord = this.records.firstWord.nextWord;
+
+        // Edge case: page is now completely empty
+        if (!this.records.firstWord) {
+          this.records.lastWord = null;
+        }
+        return;
+      }
+
+      // Case 2: Deleting a word inside the page or the last word
+      let current = this.records.firstWord;
+      let prev = null;
+
+      while (current) {
+        // Find the word BEFORE the one we want to delete
+        if (current.id === previousWordId) {
+
+          // Target the word to be deleted
+          let wordToDelete = current.nextWord;
+
+          if (wordToDelete) {
+            // Link current word to the word AFTER the deleted one, preserving the chain
+            current.nextWord = wordToDelete.nextWord;
+          } else {
+            // Edge case: nothing was after current anyway
+            current.nextWord = null;
+          }
+
+          // Rebuild lastWord if we just deleted the end of the list
+          if (current.nextWord === null) {
+            this.records.lastWord = {
+              "id": current.id,
+              "content": current.content,
+              "nextWordId": firstWordOfNextPage,
+              "previousWordId": prev ? prev.id : this.records.lastWordIdOfPreviousPage,
+              "dislikeCount": current.dislikeCount,
+              "likeCount": current.likeCount
+            };
+          }
+          break;
+        }
+        prev = current;
+        current = current.nextWord;
+      }
+    },
+
     // Helper to scan our current memory tree for duplicates
     findWordInRecords(identifier) {
       let current = this.records?.firstWord;
@@ -169,12 +365,24 @@ export const usePageStore = defineStore('pageStore', {
     sendWordViaWebSocket(payload) {
       if (this.stompClient && this.stompClient.connected) {
         this.stompClient.publish({
-          destination: '/app/test-word',
+          destination: '/app/send-word',
           body: JSON.stringify(payload) // Map becomes standard JSON string
         });
-        console.log("📡 Dispatched object to backend:", payload);
+        // console.log("📡 Dispatched object to backend:", payload);
       } else {
-        console.error("STOMP Client disconnected. Cannot send payload.");
+        // console.error("STOMP Client disconnected. Cannot send payload.");
+      }
+    },
+    // Sends a structured JSON payload
+    deleteWordViaWebSocket(payload) {
+      if (this.stompClient && this.stompClient.connected) {
+        this.stompClient.publish({
+          destination: '/app/delete-word',
+          body: JSON.stringify(payload) // Map becomes standard JSON string
+        });
+        // console.log("📡 Dispatched object for deletion to backend:", payload);
+      } else {
+        // console.error("STOMP Client disconnected. Cannot send payload.");
       }
     },
 
@@ -182,20 +390,37 @@ export const usePageStore = defineStore('pageStore', {
       this.loading = true;
       this.error = null;
       try {
-        const response = await axios.get(`${API_BASE_URL}/api/pages/${id}`);
+        const token = localStorage.getItem('token');
+        const config = {};
+        if (token) {
+          config.headers = { Authorization: `Bearer ${token}` };
+        }
+
+        const response = await axios.get(`${API_BASE_URL}/api/pages/${id}`, config);
+
         this.records = response.data;
         this.nextPageFirstWordId = this.records.lastWord?.nextWordId;
 
-        // Every time you navigate to or load a fresh page, switch the WebSocket room!
+        if (response.data.totalPages) {
+          this.totalPages = response.data.totalPages;
+        }
+
         this.subscribeToPageTopic(id);
 
       } catch (err) {
-        this.error = err;
         console.error("Failed to fetch page data:", err);
+
+        // Check if the server returned a 429 status code
+        if (err.response && err.response.status === 429) {
+          this.error = "Too many requests. Please slow down and try again later.";
+        } else {
+          this.error = "Database Connection Failed";
+        }
       } finally {
         this.loading = false;
       }
     },
+
     async addWord(content, currentPageId, localId, previousWordId, nextWordId, previousLocalId=null) {
       this.uploading = true;
       this.error = null;
@@ -253,8 +478,7 @@ export const usePageStore = defineStore('pageStore', {
         this.uploading = false;
       }
     },
-
-// Helper: Convert linked list to array
+    // Helper: Convert linked list to array
     linkedListToArray() {
       const result = [];
       let current = this.records.firstWord;
@@ -264,9 +488,7 @@ export const usePageStore = defineStore('pageStore', {
       }
       return result;
     },
-
-// Helper: Rebuild linked list from array
-// Helper: Rebuild linked list from array
+    // Helper: Rebuild linked list from array
     rebuildLinkedList(words) {
       if (words.length === 0) {
         this.records.firstWord = null;
@@ -305,7 +527,31 @@ export const usePageStore = defineStore('pageStore', {
         previousWordId: secondToLastWordId
       };
     },
+    // 🚀 ADD THIS ACTION INSIDE YOUR ACTIONS BLOCK
+    async findMigratedWordPage(wordId) {
+      try {
+        const token = localStorage.getItem('token');
+        const config = {};
+        if (token) {
+          config.headers = {
+            Authorization: `Bearer ${token}`
+          };
+        }
+
+        const response = await axios.get(
+          `${API_BASE_URL}/api/words/${wordId}/page`,
+          config
+        );
+
+        // Return the target page ID directly to the calling component
+        return response.data.pageId;
+      } catch (err) {
+        console.error("Could not trace migrated word anchor location:", err);
+        throw err;
+      }
+    },
     // A fast, non-crypto UUIDv4 look-alike generator for HTTP
+    // TODO: make collisions less likely somehow
     generateSimpleId() {
       return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
         const r = Math.random() * 16 | 0;

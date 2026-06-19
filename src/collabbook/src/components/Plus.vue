@@ -32,26 +32,27 @@ import { usePageStore } from '@/stores/pageStore';
 
 const emit = defineEmits(['submit']);
 const props = defineProps({
-  // Enforces data mapping discipline matching Spring Boot's Long vs String params
-  previous: { 
-    type: Number, 
-    default: null 
+  previous: {
+    type: Number,
+    default: null
   },
-  next: { 
-    type: Number, 
-    default: null 
+  next: {
+    type: Number,
+    default: null
   },
-  isEditing: { 
-    type: Boolean, 
-    default: false 
+  isEditing: {
+    type: Boolean,
+    default: false
   },
-  previousLocalId: { 
-    type: String, 
-    default: null 
+  previousLocalId: {
+    type: String,
+    default: null
+  },
+  currentPageId: {
+    type: Number
   }
 });
 
-const route = useRoute();
 const pageStore = usePageStore();
 
 const isComponentEditing = ref(false);
@@ -83,20 +84,18 @@ const focusInnerInput = () => {
   });
 };
 
-defineExpose({ focusInnerInput });
-
 const submitWord = () => {
   const trimmedWord = newWord.value.trim();
   if (!trimmedWord) { cancelEditing(); return; }
 
   if (!localId) localId = pageStore.generateSimpleId();
   const currentLocalId = localId;
-  const currentPageId = Number(route.params.id);
+  const currentPageId = props.currentPageId;
 
-  // 1. OPTIMISTIC PASS: Broadcast immediately to layout to construct the next inline button
+  // OPTIMISTIC PASS: Broadcast immediately to layout to construct the next inline button
   emit('submit', {
-    id: null, 
-    localId: currentLocalId, 
+    id: null,
+    localId: currentLocalId,
     content: trimmedWord,
     previous: props.previous,         // Pure Long (or null)
     next: props.next,                 // Pure Long (or null)
@@ -106,7 +105,7 @@ const submitWord = () => {
   // Re-initialize this UI input slot completely so it is ready for reuse
   newWord.value = '';
   isComponentEditing.value = false;
-  localId = null; 
+  localId = null;
 
 // Look for your pageStore.sendWordViaWebSocket line and change it to pass an object:
   pageStore.sendWordViaWebSocket({
@@ -117,22 +116,6 @@ const submitWord = () => {
     nextWordId: props.next,
     previousLocalId: props.previousLocalId
   });
-
-  // 2. ASYNC IN-FLIGHT DISPATCH: Non-blocking background thread worker
-  /*
-  pageStore.addWord(
-    trimmedWord, 
-    currentPageId, 
-    currentLocalId,
-    props.previous, 
-    props.next, 
-    props.previousLocalId
-  ).then((savedWord) => {
-    console.log(`Successfully saved background word. Local: ${currentLocalId} -> DB ID: ${savedWord?.id}`);
-  }).catch((error) => {
-    console.error("Critical background execution failure:", error);
-  });
-  */
 };
 
 onMounted(() => {
@@ -140,6 +123,18 @@ onMounted(() => {
   if (props.isEditing) {
     localId = pageStore.generateSimpleId();
   }
+});
+
+const setInputValue = (text) => {
+  newWord.value = text;
+};
+
+defineExpose({
+  focusInnerInput,
+  isComponentEditing,
+  getPrevious: () => props.previous,
+  getInputValue: () => newWord.value,
+  setInputValue
 });
 </script>
 

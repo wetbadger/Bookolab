@@ -1,0 +1,23 @@
+[done] Indicate that you have already liked or disliked something
+[done] double click to like
+[done] triple click to dislike
+[done] Type password again field
+[done] Make sure passwords are secure
+Give users 2 minutes to edit or delete their own words
+Show how long ago a word was created
+[done] Filter for ethnic slurs
+[done] Truncate the pages every 10 minutes
+[done] Delete words
+[done] Rate limit accounts
+Limit number of accounts per ip
+[done] Leaderboard
+Use Cloudflare Turnstile to prevent robots from submitting
+Admin powers
+[done] Allow users to delete accounts (their words become anonymous)
+
+Bugs:
+[fixed] Anonymous users can't see site changes without a session token.
+[needs more testing] Empty pages between pages needs to be handled.
+[needs more testing] When the only word gets deleted on a page, that should reflect in the last word in the local store.
+[fixed?] When a word gets created on a page, the next word needs to be reflected in the local store.
+When you spend credits, the delete buttons don't update, and using a phony delete button causes (local) delete of first word.

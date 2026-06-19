@@ -1,13 +1,22 @@
 package com.example.restservice.service;
 
+import com.example.restservice.dto.DeletionResult;
 import com.example.restservice.dto.FlatLinkedWordDto;
+import com.example.restservice.dto.WordNodeDto;
+import com.example.restservice.enums.ReactionType;
+import com.example.restservice.model.Author;
 import com.example.restservice.model.Word;
 import com.example.restservice.model.Page;
+import com.example.restservice.repository.AuthorRepository;
 import com.example.restservice.repository.PageRepository;
+import com.example.restservice.repository.ReactionRepository;
 import com.example.restservice.repository.WordRepository;
 import jakarta.annotation.Nullable;
 import org.jspecify.annotations.NullMarked;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -21,11 +30,15 @@ public class WordService {
 
     private final WordRepository wordRepository;
     private final PageRepository pageRepository;
+    private final AuthorRepository authorRepository;
+    private final ReactionRepository reactionRepository;
 
     // Update constructor injection
-    public WordService(WordRepository wordRepository, PageRepository pageRepository) {
+    public WordService(WordRepository wordRepository, PageRepository pageRepository, AuthorRepository authorRepository, ReactionRepository reactionRepository) {
         this.wordRepository = wordRepository;
         this.pageRepository = pageRepository;
+        this.authorRepository = authorRepository;
+        this.reactionRepository = reactionRepository;
     }
 
     @Transactional(readOnly = true)
@@ -50,7 +63,9 @@ public class WordService {
                 .map(Word::getId)
                 .orElse(null); // Returns null if this word is the head of the list
         
-        return new FlatLinkedWordDto(word.getId(), word.getContent(), nextWordId, previousWordId);
+        FlatLinkedWordDto flatLinkedWordDto = new FlatLinkedWordDto(word.getId(), word.getContent(), nextWordId, previousWordId);
+
+        return flatLinkedWordDto;
     }
 
     /*
@@ -80,15 +95,29 @@ public class WordService {
      * @return the created word.
      */
     @Transactional
-    public Word createWord(Word newWord, Long currentPageId, String localId, @Nullable Long previousWordId, @Nullable String previousLocalId) {
+    public Word createWord(Word newWord, Long currentPageId, String localId,
+                           @Nullable Long previousWordId, @Nullable String previousLocalId,
+                           String username) {
         newWord.setLocalId(localId);
+
+        // FETCH THE AUTHENTICATED AUTHOR AND LINK THEM TO THE WORD
+        var author = authorRepository.findAuthorByUsername(username)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Author profile not found for creation context: " + username));
+        newWord.setAuthor(author);
 
         // 1. Determine the previous word anchor based on identity precedence
         Word previousWord = null;
-
         if (previousLocalId != null && !previousLocalId.isBlank()) {
-            previousWord = wordRepository.findByLocalId(previousLocalId)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Previous word not found via localId: " + previousLocalId));
+            previousWord = wordRepository.findByLocalId(previousLocalId).orElse(null);
+            // There might not be a previous word in memory in the event that the user was rate limited.
+            // In this case they may have kept typing until they received another token.
+            // When this happens, if they type another word, findByLocalId will not find a previous word by local id.
+            if (previousWord == null) {
+                // In this case we just return a dummy word that isn't connected to anything and
+                // does not get saved to the database.
+                return new Word("...", "dummy_word");
+            }
+                    // .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Previous word not found via localId: " + previousLocalId));
         } else if (previousWordId != null) {
             previousWord = wordRepository.findById(previousWordId)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Previous word not found via DB ID: " + previousWordId));
@@ -98,7 +127,6 @@ public class WordService {
         if (previousWord != null) {
             // Cache the next word link so we don't lose it
             Word nextWordAnchor = previousWord.getNextWord();
-
             // Sever the link on the previous word immediately to free up the unique constraint
             previousWord.setNextWord(null);
             wordRepository.saveAndFlush(previousWord); // Force the DB to see next_word_id is now NULL
@@ -115,15 +143,19 @@ public class WordService {
             Page currentPage = pageRepository.findById(currentPageId)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Current page not found"));
 
-            Page pageWithLastWord = pageRepository.findByLastWord(previousWord).orElse(null);
-            Page pageWithFirstWord = pageRepository.findByFirstWord(savedWord.getNextWord()).orElse(null);
-
-            if (pageWithLastWord != null && Objects.equals(pageWithLastWord.getId(), currentPageId)) {
+            // Case 1: The current page is completely empty (this is its first and only word)
+            if (currentPage.getFirstWord() == null) {
+                currentPage.setFirstWord(savedWord);
                 currentPage.setLastWord(savedWord);
             }
-
-            if (pageWithFirstWord != null && Objects.equals(pageWithFirstWord.getId(), currentPageId)) {
+            // Case 2: We are inserting a word right at the beginning of this page
+            // (i.e., the previous word belonged to the prior page, and this page's old first word is now our next word)
+            else if (Objects.equals(currentPage.getFirstWord(), savedWord.getNextWord())) {
                 currentPage.setFirstWord(savedWord);
+            }
+            // Case 3: We are appending to the very end of this page
+            else if (Objects.equals(currentPage.getLastWord(), previousWord)) {
+                currentPage.setLastWord(savedWord);
             }
 
             pageRepository.save(currentPage);
@@ -131,16 +163,44 @@ public class WordService {
             return savedWord;
         }
 
-        // 3. Fallback: If both qualifiers are null, prepend/prepend-isolated to the specified page
+        // 3. Fallback: If both qualifiers are null, prepend to the specified page
         Page targetPage = pageRepository.findById(currentPageId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Target page not found"));
-        
-        newWord.setNextWord(targetPage.getFirstWord());
+
+        if (targetPage.getFirstWord() != null) {
+            // Page already has content; prepend to the current page's chain
+            newWord.setNextWord(targetPage.getFirstWord());
+        } else {
+            // Page is empty! Look ahead to find the next non-empty page's first word
+            Word nextChainHead = null;
+            Long nextId = currentPageId + 1;
+
+            // Scan ahead up to a reasonable limit or until no more pages exist
+            while (true) {
+                java.util.Optional<Page> nextPageOpt = pageRepository.findById(nextId);
+                if (nextPageOpt.isEmpty()) {
+                    break; // No more pages in DB
+                }
+                Page nextPage = nextPageOpt.get();
+                if (nextPage.getFirstWord() != null) {
+                    nextChainHead = nextPage.getFirstWord();
+                    break; // Found the next link in the chain
+                }
+                nextId++;
+            }
+            newWord.setNextWord(nextChainHead);
+        }
+
         Word savedWord = wordRepository.saveAndFlush(newWord);
-        
+
+        // If the page was empty, this new word is also the last word
+        if (targetPage.getFirstWord() == null) {
+            targetPage.setLastWord(savedWord);
+        }
+
         targetPage.setFirstWord(savedWord);
         pageRepository.save(targetPage);
-        
+
         return savedWord;
     }
 
@@ -161,12 +221,47 @@ public class WordService {
     }
 
     @Transactional
-    public void deleteWord(Long id) {
+    public DeletionResult deleteWord(Long id, Long currentPageId, String authorName) {
         Word wordToDelete = wordRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Word not found"));
 
+        Author author = authorRepository.findAuthorByUsername(authorName)
+                .orElseThrow(() -> new UsernameNotFoundException("Author not found"));
+
+        Long likes = reactionRepository.countByWordIdAndReactionType(id, ReactionType.LIKE);
+        Long dislikes = reactionRepository.countByWordIdAndReactionType(id, ReactionType.DISLIKE);
+
+        long creditsRequired = likes - dislikes;
+
+        if (!hasEnoughDeleteCredits(author, creditsRequired)) {
+            // System.out.println("\uD83D\uDEAB User does not have enough delete credits.");
+            return new DeletionResult(null, null);
+        }
+
         Word nextWord = wordToDelete.getNextWord();
         Word previousWord = wordRepository.findByNextWord(wordToDelete).orElse(null);
+
+        // Safely extract IDs, defaulting to null if the object is null
+        Long previousId = (previousWord != null) ? previousWord.getId() : null;
+
+        // Unless we are the last word of the current page, set the next word DTO
+        WordNodeDto nextWordNodeDto = null;
+        Page nextPage = pageRepository.findById(currentPageId + 1).orElse(null);
+        int i = 2;
+        while (nextPage != null && nextPage.getFirstWord() == null) {
+            nextPage = pageRepository.findById(currentPageId + i).orElse(null);
+            i++;
+        }
+        // Only check the first word if nextPage actually exists
+        if (nextPage != null && nextPage.getFirstWord() != null
+                && !nextPage.getFirstWord().equals(nextWord)) {
+            nextWordNodeDto = new WordNodeDto(
+                    nextWord.getId(),
+                    nextWord.getContent(),
+                    authorName);
+        }
+
+        DeletionResult result = new DeletionResult(previousId, nextWordNodeDto);
 
         patchPageBoundaries(wordToDelete, previousWord, nextWord);
 
@@ -178,6 +273,10 @@ public class WordService {
         wordToDelete.setNextWord(null);
         wordRepository.saveAndFlush(wordToDelete);
         wordRepository.delete(wordToDelete);
+
+        author.incrementCreditsSpent(creditsRequired);
+        authorRepository.save(author);
+        return result;
     }
 
     private void patchPageBoundaries(Word wordToDelete, @Nullable Word previousWord, @Nullable Word nextWord) {
@@ -197,5 +296,10 @@ public class WordService {
             page.setLastWord(previousWord);
             pageRepository.save(page);
         });
+    }
+
+    public boolean hasEnoughDeleteCredits(Author author, Long creditsRequired) {
+        // System.out.println(author.getUsername() + " spent " + author.getCreditsSpent() + " credits.");
+        return reactionRepository.countLikesMinusDislikes(author.getId()) - author.getCreditsSpent() >= creditsRequired;
     }
 }
