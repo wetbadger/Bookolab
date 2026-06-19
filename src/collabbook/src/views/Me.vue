@@ -1,6 +1,6 @@
 <template>
   <div class="profile-container">
-    <a href="/" class="brand-link">bookolab.com</a>
+    <Home />
     <hr class="divider" />
 
     <div v-if="loading" class="loading-state">
@@ -82,6 +82,7 @@ import { ref, onMounted } from 'vue';
 import { useAuthStore } from '@/stores/authStore';
 import { useRouter } from 'vue-router';
 import { usePageStore } from "@/stores/pageStore.js";
+import Home from '@/components/Home.vue';
 
 const authStore = useAuthStore();
 const pageStore = usePageStore();

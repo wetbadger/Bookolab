@@ -1,6 +1,6 @@
 <template>
   <div class="profile-container">
-    <a href="/" class="brand-link">bookolab.com</a>
+    <Home />
     <hr class="divider" />
 
     <div v-if="loading" class="loading-state">
@@ -45,6 +45,7 @@
 <script setup>
 import { ref, onMounted, watch } from 'vue';
 import {useAuthStore} from "@/stores/authStore.js";
+import Home from "@/components/Home.vue";
 
 // 1. Declare your prop from the router configuration
 const props = defineProps({

@@ -2,6 +2,7 @@
   <nav>
     <ul class="nav">
       <li><Paginator /></li>
+      <li><router-link to="/leaderboard" class="leaderboard-btn">🏆</router-link></li>
       <li v-if="isAuthenticated"><Profile /></li>
     </ul>
   </nav>
@@ -63,7 +64,6 @@
       </span>
     </template>
   </div>
-  <Footer />
 </template>
 
 <script setup>
@@ -76,7 +76,6 @@ import Word from '@/components/Word.vue';
 import Plus from '@/components/Plus.vue';
 import Profile from '@/components/Profile.vue';
 import Paginator from "@/components/Pagenator.vue";
-import Footer from "@/components/Footer.vue";
 
 const props = defineProps({
   id: { type: Number, required: true },
@@ -370,7 +369,31 @@ watch(
 .nav {
   display: flex;
   justify-content: space-around;
+  align-items: center;
+  list-style: none;
+  padding: 0;
+  margin: 0;
 }
+
+.nav li {
+  display: inline-block;
+}
+
+.leaderboard-btn {
+  display: inline-block;
+  padding: 8px 16px;
+  color: #1a1a1a;
+  text-decoration: none;
+  border-radius: 20px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(247, 151, 30, 0.3);
+}
+
+.leaderboard-btn:hover {
+  box-shadow: 0 4px 12px rgba(247, 151, 30, 0.4);
+}
+
 .mode-toggle {
   margin-bottom: 20px;
 }
@@ -402,5 +425,19 @@ watch(
   border: 1px solid #f5c6cb;
   padding: 10px;
   border-radius: 4px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+  .nav {
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+  }
+
+  .leaderboard-btn {
+    font-size: 0.9rem;
+    padding: 6px 12px;
+  }
 }
 </style>

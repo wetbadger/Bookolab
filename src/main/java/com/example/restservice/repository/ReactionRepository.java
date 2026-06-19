@@ -14,6 +14,8 @@ public interface ReactionRepository extends JpaRepository<Reaction, Long> {
     Optional<Reaction> findByAuthorIdAndWordId(Long authorId, Long wordId);
     long countByWordIdAndReactionType(Long wordId, ReactionType reactionType);
     boolean existsByAuthorIdAndWordIdAndReactionType(Long authorId, Long wordId, ReactionType reactionType);
+    List<Reaction> findByAuthorId(Long authorId);
+
     /**
      * Fetches reaction aggregates for all words on a specific page in a single database round-trip.
      * Returns a list of maps where each map contains: 'wordId', 'type', and 'cnt'
@@ -44,4 +46,16 @@ public interface ReactionRepository extends JpaRepository<Reaction, Long> {
             "FROM Reaction r " +
             "WHERE r.word.author.id = :authorId")
     long countLikesMinusDislikes(@Param("authorId") Long authorId);
+
+
+    @Query(value = "SELECT a.id, a.username, " +
+            "COALESCE(SUM(CASE WHEN r.reaction_type = 'LIKE' THEN 1 ELSE -1 END), 0) as score " +
+            "FROM author a " +
+            "LEFT JOIN word w ON w.author_id = a.id " +  // Join to words created by the author
+            "LEFT JOIN reaction r ON r.word_id = w.id " + // Join to reactions on those words
+            "GROUP BY a.id, a.username " +
+            "ORDER BY score DESC " +
+            "LIMIT :limit",
+            nativeQuery = true)
+    List<Object[]> findTopUsersByReceivedReactions(@Param("limit") int limit);
 }

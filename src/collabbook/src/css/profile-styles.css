@@ -8,18 +8,6 @@
   color: #333;
 }
 
-.brand-link {
-  color: #4f46e5;
-  text-decoration: none;
-  font-weight: 600;
-  font-size: 1.1rem;
-  transition: color 0.2s ease;
-}
-
-.brand-link:hover {
-  color: #3730a3;
-}
-
 .divider {
   border: 0;
   height: 1px;

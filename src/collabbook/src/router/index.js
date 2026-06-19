@@ -6,6 +6,7 @@ import Signup from '@/views/Signup.vue';
 import Me from '@/views/Me.vue';
 import Author from '@/views/Author.vue';
 import DeleteAccount from '@/views/DeleteAccount.vue';
+import Leaderboard from '@/views/Leaderboard.vue';
 
 const isDebugMode = false;
 
@@ -54,6 +55,11 @@ const routes = [
     path: '/delete-account',
     name: 'delete-account',
     component: DeleteAccount
+  },
+  {
+    path: '/leaderboard',
+    name: 'leaderboard',
+    component: Leaderboard
   }
 ];
 
