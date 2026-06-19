@@ -4,6 +4,7 @@ import com.example.restservice.dto.DeletionResult;
 import com.example.restservice.dto.WordNodeDto;
 import com.example.restservice.model.Word;
 import com.example.restservice.repository.AuthorRepository;
+import com.example.restservice.service.SlurDetector;
 import com.example.restservice.service.WordService;
 import com.example.restservice.model.Page;
 import com.example.restservice.repository.PageRepository;
@@ -31,6 +32,9 @@ public class WordWebSocketController {
     @Autowired
     private AuthorRepository authorRepository;
 
+    @Autowired
+    private SlurDetector slurDetector;
+
     @MessageMapping("/send-word")
     public void handleNewWordBroadcast(Map<String, Object> payload, java.security.Principal principal) throws InterruptedException {
         String username = validateAndGetUsername(principal, "an edit");
@@ -38,6 +42,10 @@ public class WordWebSocketController {
         String content = (String) payload.get("content");
         String localId = (String) payload.get("localId");
         long currentPageId = Long.parseLong(String.valueOf(payload.get("currentPageId")));
+
+        if (slurDetector.isSlur(content)) {
+            return;
+        }
 
         Long previousWordId = payload.get("previousWordId") != null ?
                 Long.valueOf(String.valueOf(payload.get("previousWordId"))) : null;

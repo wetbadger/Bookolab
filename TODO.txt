@@ -10,7 +10,7 @@ Filter for ethnic slurs
 [done] Delete words
 [done] Rate limit accounts
 Limit number of accounts per ip
-Leaderboard
+[done] Leaderboard
 Use Cloudflare Turnstile to prevent robots from submitting
 Admin powers
 [done] Allow users to delete accounts (their words become anonymous)

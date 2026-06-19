@@ -6,6 +6,7 @@ import com.example.restservice.model.Author;
 import com.example.restservice.response.LoginResponse;
 import com.example.restservice.service.AuthenticationService;
 import com.example.restservice.service.JwtService;
+import com.example.restservice.service.SlurDetector;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -18,10 +19,12 @@ import org.springframework.web.bind.annotation.*;
 public class AuthenticationController {
     private final JwtService jwtService;
     private final AuthenticationService authenticationService;
+    private final SlurDetector slurDetector;
 
-    public AuthenticationController(JwtService jwtService, AuthenticationService authenticationService) {
+    public AuthenticationController(JwtService jwtService, AuthenticationService authenticationService, SlurDetector slurDetector) {
         this.jwtService = jwtService;
         this.authenticationService = authenticationService;
+        this.slurDetector = slurDetector;
     }
 
     @PostMapping("/signup")
@@ -31,6 +34,12 @@ public class AuthenticationController {
             return ResponseEntity
                     .status(HttpStatus.BAD_REQUEST)
                     .body(new ErrorResponseDto("Password must be at least 8 characters long."));
+        }
+
+        if (slurDetector.isSlur(registerAuthorDto.getUsername())) {
+            return ResponseEntity
+                    .status(HttpStatus.BAD_REQUEST)
+                    .body(new ErrorResponseDto("Username must not contain ethnic slurs."));
         }
 
         // 2. Delegate to service. If it throws UsernameAlreadyExistsException,
