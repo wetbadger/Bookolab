@@ -23,4 +23,5 @@ Bugs:
 [needs more testing] When the only word gets deleted on a page, that should reflect in the last word in the local store.
 [fixed?] When a word gets created on a page, the next word needs to be reflected in the local store.
 [fixed] When you spend credits, the delete buttons don't update, and using a phony delete button causes (local) delete of first word.
-When a user gets reactions during their session, a message needs to be sent to the user that their number of delete credits has changed. (Spent credits are handled locally.)
+When a user gets reactions during their session, a message needs to be sent to the user that their number of delete credits has increased or decreased. (Spent credits are handled locally.)
+A user's own likes or dislikes shouldn't contribute to the credits needed to delete a word. Otherwise, they can just downvote new words and delete them to gain credits.
