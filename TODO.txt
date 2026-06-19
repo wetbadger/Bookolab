@@ -14,6 +14,8 @@ Limit number of accounts per ip
 Use Cloudflare Turnstile to prevent robots from submitting
 Admin powers
 [done] Allow users to delete accounts (their words become anonymous)
+Ability to download book in current state.
+Different actions (like log in or download) cost more rate tokens than other actions.
 
 Bugs:
 [fixed] Anonymous users can't see site changes without a session token.
@@ -21,3 +23,4 @@ Bugs:
 [needs more testing] When the only word gets deleted on a page, that should reflect in the last word in the local store.
 [fixed?] When a word gets created on a page, the next word needs to be reflected in the local store.
 [fixed] When you spend credits, the delete buttons don't update, and using a phony delete button causes (local) delete of first word.
+When a user gets reactions during their session, a message needs to be sent to the user that their number of delete credits has changed. (Spent credits are handled locally.)
