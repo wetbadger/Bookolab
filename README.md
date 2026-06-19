@@ -202,7 +202,18 @@ sudo docker run --name bookolab-redis -p 6379:6379 -d redis
 npm install && npm run dev
 ```
 
-Or for production do:
+### And for production do:
 ```Plaintext
-docker compose --env-file .env-production up -d
+docker-compose --env-file .env-production up -d
+```
+*Make sure you have a .env-production file
+
+```Plaintext
+# Database Configuration
+DB_NAME=bookolab_db
+DB_USER=postgres
+DB_PASSWORD=production_secure_password_here
+
+# Security Secrets
+JWT_SECRET=your_super_secret_production_key_here
 ```
