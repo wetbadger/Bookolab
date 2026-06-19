@@ -4,6 +4,7 @@ import com.bookolab.restservice.dto.DeletionResult;
 import com.bookolab.restservice.dto.WordNodeDto;
 import com.bookolab.restservice.model.Word;
 import com.bookolab.restservice.repository.AuthorRepository;
+import com.bookolab.restservice.service.ReactionStatsService;
 import com.bookolab.restservice.service.SlurDetector;
 import com.bookolab.restservice.service.WordService;
 import com.bookolab.restservice.model.Page;
@@ -22,6 +23,9 @@ public class WordWebSocketController {
 
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
+
+    @Autowired
+    private ReactionStatsService reactionStatsService;
 
     @Autowired
     private WordService wordService;
@@ -73,6 +77,9 @@ public class WordWebSocketController {
         String username = validateAndGetUsername(principal, "a deletion");
         long wordId = Long.parseLong(String.valueOf(payload.get("wordId")));
         long currentPageId = Long.parseLong(String.valueOf(payload.get("currentPageId")));
+
+        // 2. Broadcast stats for the author whose word is being deleted
+        reactionStatsService.broadcastSubtractionOfLikesAndDislikesForWord(wordId);
 
         DeletionResult result = wordService.deleteWord(wordId, currentPageId, username);
 

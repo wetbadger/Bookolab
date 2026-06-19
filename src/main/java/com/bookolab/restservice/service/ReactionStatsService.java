@@ -53,11 +53,50 @@ public class ReactionStatsService {
                     "/queue/reaction-stats",
                     stats
             );
-
+            /*
             System.out.println("📊 Author " + author.getUsername() +
                     " received stats - Likes: " + totalLikesReceived +
                     ", Dislikes: " + totalDislikesReceived);
+            */
+        } catch (Exception e) {
+            System.err.println("❌ Failed to broadcast user reaction stats: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
 
+    @Transactional
+    public void broadcastSubtractionOfLikesAndDislikesForWord(Long wordId) {
+        try {
+            // Load the word with its author
+            Word word = wordRepository.findByIdWithAuthor(wordId)
+                    .orElseThrow(() -> new RuntimeException("Word not found with id: " + wordId));
+
+            Author author = word.getAuthor();
+            if (author == null) {
+                return;
+            }
+
+            long likes = reactionRepository.countByWordIdAndReactionType(wordId, ReactionType.LIKE);
+            long dislikes = reactionRepository.countByWordIdAndReactionType(wordId, ReactionType.DISLIKE);
+
+            // Count reactions RECEIVED on ALL words by this author
+            // This counts how many times OTHER people reacted to THIS author's words
+            long totalLikesReceived = reactionRepository.countReactionsReceivedByAuthor(author.getId(), ReactionType.LIKE);
+            long totalDislikesReceived = reactionRepository.countReactionsReceivedByAuthor(author.getId(), ReactionType.DISLIKE);
+
+            UserReactionStats stats = new UserReactionStats(totalLikesReceived - likes, totalDislikesReceived - dislikes);
+
+            // Send to the word author's private queue
+            messagingTemplate.convertAndSendToUser(
+                    author.getUsername(),
+                    "/queue/reaction-stats",
+                    stats
+            );
+            /*
+            System.out.println("📊 Author " + author.getUsername() +
+                    " received stats - Likes: " + totalLikesReceived +
+                    ", Dislikes: " + totalDislikesReceived);
+            */
         } catch (Exception e) {
             System.err.println("❌ Failed to broadcast user reaction stats: " + e.getMessage());
             e.printStackTrace();
