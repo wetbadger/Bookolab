@@ -147,7 +147,7 @@ See the [postgres docs](https://www.postgresql.org/docs/) on how to do this.
 2. Create a .env file in the root folder that looks like this:
 
 ```Plaintext
-SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/collabbook_db
+SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/bookolab_db
 SPRING_DATASOURCE_USERNAME=postgres
 SPRING_DATASOURCE_PASSWORD=local_password
 CORS_ALLOWED_ORIGIN=http://localhost:5173
