@@ -49,10 +49,14 @@ public interface ReactionRepository extends JpaRepository<Reaction, Long> {
 
 
     @Query(value = "SELECT a.id, a.username, " +
-            "COALESCE(SUM(CASE WHEN r.reaction_type = 'LIKE' THEN 1 ELSE -1 END), 0) as score " +
+            "COALESCE(SUM(CASE " +
+            "    WHEN r.reaction_type = 'LIKE' THEN 1 " +
+            "    WHEN r.reaction_type = 'DISLIKE' THEN -1 " +
+            "    ELSE 0 " + // If the reaction is NULL or anything else, it's 0 points
+            "END), 0) as score " +
             "FROM author a " +
-            "LEFT JOIN word w ON w.author_id = a.id " +  // Join to words created by the author
-            "LEFT JOIN reaction r ON r.word_id = w.id " + // Join to reactions on those words
+            "LEFT JOIN word w ON w.author_id = a.id " +
+            "LEFT JOIN reaction r ON r.word_id = w.id " +
             "GROUP BY a.id, a.username " +
             "ORDER BY score DESC " +
             "LIMIT :limit",
