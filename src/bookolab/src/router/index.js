@@ -7,6 +7,8 @@ import Me from '@/views/Me.vue';
 import Author from '@/views/Author.vue';
 import DeleteAccount from '@/views/DeleteAccount.vue';
 import Leaderboard from '@/views/Leaderboard.vue';
+import Terms from '@/views/Terms.vue';
+import Privacy from '@/views/Privacy.vue';
 
 const isDebugMode = false;
 
@@ -60,6 +62,16 @@ const routes = [
     path: '/leaderboard',
     name: 'leaderboard',
     component: Leaderboard
+  },
+  {
+    path: '/privacy',
+    name: 'privacy',
+    component: Privacy
+  },
+  {
+    path: '/terms',
+    name: 'terms',
+    component: Terms
   }
 ];
 
