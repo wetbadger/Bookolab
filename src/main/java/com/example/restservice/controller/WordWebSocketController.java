@@ -55,10 +55,15 @@ public class WordWebSocketController {
         Word transientWord = new Word(content, localId);
         Word savedDatabaseWord = wordService.createWord(transientWord, currentPageId, localId, previousWordId, previousLocalId, username);
 
+        if (savedDatabaseWord.getLocalId().equals("dummy_word")) {
+            return;
+        }
+
         Map<String, Object> wordAction = Map.of(
                 "type", "CREATE_WORD",
                 "word", savedDatabaseWord
         );
+
         // 2. Broadcast the fresh word to the active page right away
         sendMessage(currentPageId, wordAction);
     }

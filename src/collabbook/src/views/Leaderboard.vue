@@ -68,7 +68,7 @@
 
       <!-- Last updated timestamp -->
       <div class="footer-meta">
-        <span>Showing top {{ store.topUsers.length }} players</span>
+        <span>Showing top {{ store.topUsers.length }} authors</span>
         <span v-if="store.lastUpdated" class="update-time">
           Updated: {{ formatTime(store.lastUpdated) }}
         </span>
