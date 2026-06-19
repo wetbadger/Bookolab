@@ -3,6 +3,7 @@
     <ul class="nav">
       <li><Paginator /></li>
       <li><router-link to="/leaderboard" class="leaderboard-btn">🏆</router-link></li>
+      <li><Score /></li>
       <li v-if="isAuthenticated"><Profile /></li>
     </ul>
   </nav>
@@ -75,6 +76,7 @@ import { useAuthStore } from '@/stores/authStore'; // Import the new store
 import Word from '@/components/Word.vue';
 import Plus from '@/components/Plus.vue';
 import Profile from '@/components/Profile.vue';
+import Score from '@/components/Score.vue';
 import Paginator from "@/components/Pagenator.vue";
 
 const props = defineProps({

@@ -15,6 +15,7 @@ public interface ReactionRepository extends JpaRepository<Reaction, Long> {
     long countByWordIdAndReactionType(Long wordId, ReactionType reactionType);
     boolean existsByAuthorIdAndWordIdAndReactionType(Long authorId, Long wordId, ReactionType reactionType);
     List<Reaction> findByAuthorId(Long authorId);
+    long countByAuthorIdAndReactionType(Long authorId, ReactionType reactionType);
 
     /**
      * Fetches reaction aggregates for all words on a specific page in a single database round-trip.
@@ -62,4 +63,7 @@ public interface ReactionRepository extends JpaRepository<Reaction, Long> {
             "LIMIT :limit",
             nativeQuery = true)
     List<Object[]> findTopUsersByReceivedReactions(@Param("limit") int limit);
+
+    @Query("SELECT COUNT(r) FROM Reaction r WHERE r.word.author.id = :authorId AND r.reactionType = :reactionType")
+    long countReactionsReceivedByAuthor(@Param("authorId") Long authorId, @Param("reactionType") ReactionType reactionType);
 }

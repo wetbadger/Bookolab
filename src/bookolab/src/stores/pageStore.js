@@ -2,6 +2,7 @@
 import { defineStore } from 'pinia';
 import { Client } from '@stomp/stompjs';
 import axios from 'axios';
+import { useAuthStore } from './authStore';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 // Convert http/https to ws/wss dynamically for your Codespace environment
@@ -22,6 +23,11 @@ export const usePageStore = defineStore('pageStore', {
     truncationEventTrigger: 0,
     globalUpdatesSubscription: null,
     creditsUsedThisWindow: 0, // returns to 0 on refresh
+    userReactionCounts: {
+      likesReceived: 0,
+      dislikesReceived: 0
+    },
+    userReactionsSubscription: null,
     globalCounter: 0 // TODO: use for id generation
   }),
   actions: {
@@ -83,6 +89,27 @@ export const usePageStore = defineStore('pageStore', {
           }, 5000);
         });
 
+// 🚀 SUBSCRIBE TO USER'S OWN REACTION STATS
+        this.stompClient.subscribe('/user/queue/reaction-stats', (message) => {
+          const stats = JSON.parse(message.body);
+          this.userReactionCounts = {
+            likesReceived: stats.likesReceived || 0,  // Updated field name
+            dislikesReceived: stats.dislikesReceived || 0  // Updated field name
+          };
+          /*
+          console.log("📊 You've received reactions - Likes: " +
+            this.userReactionCounts.likesReceived +
+            ", Dislikes: " + this.userReactionCounts.dislikesReceived);
+          */
+        });
+
+// Request initial stats for the authenticated user
+// (This gets the user's OWN stats - how many likes/dislikes they've received)
+        this.stompClient.publish({
+          destination: '/app/get-my-reaction-stats',
+          body: JSON.stringify({})
+        });
+
         if (this.records?.id) {
           this.subscribeToPageTopic(this.records.id);
         }
@@ -109,15 +136,24 @@ export const usePageStore = defineStore('pageStore', {
           if (this.currentSubscription) this.currentSubscription.unsubscribe();
           if (this.currentReactionsSubscription) this.currentReactionsSubscription.unsubscribe();
           if (this.globalUpdatesSubscription) this.globalUpdatesSubscription.unsubscribe();
+          if (this.userReactionsSubscription) this.userReactionsSubscription.unsubscribe();
         }
 
         // 2. Wipe out the stale references from Pinia memory completely
         this.currentSubscription = null;
         this.currentReactionsSubscription = null;
         this.globalUpdatesSubscription = null;
+        this.userReactionsSubscription = null;
 
         this.stompClient.deactivate();
         this.stompClient = null;
+      }
+    },
+
+    unsubscribeFromUserReactions() {
+      if (this.userReactionsSubscription) {
+        this.userReactionsSubscription.unsubscribe();
+        this.userReactionsSubscription = null;
       }
     },
 
@@ -549,6 +585,10 @@ export const usePageStore = defineStore('pageStore', {
         console.error("Could not trace migrated word anchor location:", err);
         throw err;
       }
+    },
+    getCredits() {
+      const authStore = useAuthStore();
+      return this.userReactionCounts.likesReceived - this.userReactionCounts.dislikesReceived - (authStore.user ? authStore.user.creditsSpent : 0);
     },
     // A fast, non-crypto UUIDv4 look-alike generator for HTTP
     // TODO: make collisions less likely somehow
