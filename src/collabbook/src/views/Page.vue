@@ -121,6 +121,9 @@ const loadWords = async (streamWordsInRealTime, loadPlusSigns, isInstant = false
   lastWordIdOfPreviousPage.value = pageStore.records?.lastWordIdOfPreviousPage;
   let currentWord = firstWord.value;
 
+  let delay1 = 30;
+  let delay2 = 40;
+
   while (currentWord) {
     const wordId = currentWord.id ? currentWord.id : lastWordIdOfPreviousPage.value;
     result.push({
@@ -140,7 +143,12 @@ const loadWords = async (streamWordsInRealTime, loadPlusSigns, isInstant = false
     // If it's an initial view stream and NOT instant mode, add artificial delay
     if (streamWordsInRealTime && !isInstant) {
       displayedWords.value = [...result];
-      await delay(30);
+      if (props.isEditMode) {
+        // Switched to edit mode mid load
+        loadPlusSigns = true;
+        delay1 = 0;
+      }
+      await delay(delay1);
     }
     currentWord = currentWord.nextWord;
   }
@@ -153,7 +161,7 @@ const loadWords = async (streamWordsInRealTime, loadPlusSigns, isInstant = false
   // Only run the staggered plus sign animation if we aren't doing an instant layout update
   if (loadPlusSigns && !isInstant) {
     for (const word of displayedWords.value) {
-      await delay(40);
+      await delay(delay2);
       word.showPlus = true;
     }
   }

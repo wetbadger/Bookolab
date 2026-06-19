@@ -113,7 +113,7 @@
 .profile-actions {
   padding: 0 1.5rem 1.5rem 1.5rem;
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
 }
 
 .btn {
@@ -138,4 +138,8 @@
 
 .btn-secondary:hover {
   background-color: #e2e8f0;
+}
+
+.delete-account {
+  text-align: center;
 }
