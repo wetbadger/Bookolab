@@ -1,0 +1,69 @@
+package com.bookolab.restservice.controller;
+
+import com.bookolab.restservice.dto.BoundedPageResponse;
+import com.bookolab.restservice.dto.PageResponseDto;
+import com.bookolab.restservice.model.Page;
+import com.bookolab.restservice.service.PageService;
+import org.jspecify.annotations.NullMarked;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@CrossOrigin(origins = "${app.cors.allowed-origin}", allowCredentials = "true")
+@RequestMapping(value = "/api/pages")
+@NullMarked
+public class PageController {
+
+    private final PageService pageService;
+
+    // Constructor injection
+    public PageController(PageService pageService) {
+        this.pageService = pageService;
+    }
+
+    @GetMapping
+    public List<Page> getAllPages() {
+        return pageService.getAllPages();
+    }
+
+    @GetMapping("/flat/{id}")
+    public PageResponseDto getFlatPage(@PathVariable Long id) {
+        return pageService.getFlatPage(id);
+    }
+
+    @GetMapping("/{id}")
+    public BoundedPageResponse getPage(@PathVariable Long id, Authentication authentication) {
+        String username = null;
+
+        // Check for null before extracting the name
+        if (authentication != null && authentication.isAuthenticated()) {
+            username = authentication.getName();
+            // System.out.println("-> Logged in user: " + username);
+        } else {
+            // System.out.println("-> Anonymous user browsing page");
+        }
+
+        return pageService.getBoundedPage(id, username);
+    }
+
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public Page createPage(@RequestBody Page page) {
+        return pageService.createPage(page);
+    }
+
+    @PutMapping("/{id}")
+    public Page updatePage(@PathVariable Long id, @RequestBody Page pageDetails) {
+        return pageService.updatePage(id, pageDetails);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deletePage(@PathVariable Long id) {
+        pageService.deletePage(id);
+        return ResponseEntity.noContent().build();
+    }
+}
