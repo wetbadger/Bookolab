@@ -5,7 +5,7 @@
 [done] Make sure passwords are secure
 Give users 2 minutes to edit or delete their own words
 Show how long ago a word was created
-Filter for ethnic slurs
+[done] Filter for ethnic slurs
 [done] Truncate the pages every 10 minutes
 [done] Delete words
 [done] Rate limit accounts

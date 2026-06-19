@@ -114,10 +114,10 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
                     String username = accessor.getUser().getName();
 
                     if (username != null) {
-                        // 🚀 Key Strategy: Use a distinct prefix key string for Redis matching the user
+                        // Key Strategy: Use a distinct prefix key string for Redis matching the user
                         byte[] redisKey = ("ratelimit:ws:" + username).getBytes();
 
-                        // 🚀 Replaces local cache lookup. Fetches or generates state remotely from Redis
+                        // Replaces local cache lookup. Fetches or generates state remotely from Redis
                         BucketProxy bucket = proxyManager.builder().build(redisKey, webSocketBucketConfiguration);
 
                         if (!bucket.tryConsume(1)) {

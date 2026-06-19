@@ -61,7 +61,7 @@ const props = defineProps({
 
 const credits = computed(() => props.data.likeCount - props.data.dislikeCount ); // TODO: make this based on std deviations
 const userCredits = computed(() => {
-  return authStore.getCredits();
+  return authStore.getCredits() - pageStore.creditsUsedThisWindow;
 });
 
 const emit = defineEmits(['react']);
@@ -77,6 +77,7 @@ const deleteWord = () => {
     currentPageId: props.currentPageId,
     wordId: props.wordId
   });
+  pageStore.creditsUsedThisWindow += credits.value;
 };
 
 const toggleLike = () => {

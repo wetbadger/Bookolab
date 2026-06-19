@@ -21,6 +21,7 @@ export const usePageStore = defineStore('pageStore', {
     totalPages: 1,
     truncationEventTrigger: 0,
     globalUpdatesSubscription: null,
+    creditsUsedThisWindow: 0, // returns to 0 on refresh
     globalCounter: 0 // TODO: use for id generation
   }),
   actions: {
