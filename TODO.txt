@@ -20,4 +20,4 @@ Bugs:
 [needs more testing] Empty pages between pages needs to be handled.
 [needs more testing] When the only word gets deleted on a page, that should reflect in the last word in the local store.
 [fixed?] When a word gets created on a page, the next word needs to be reflected in the local store.
-When you spend credits, the delete buttons don't update, and using a phony delete button causes (local) delete of first word.
+[fixed] When you spend credits, the delete buttons don't update, and using a phony delete button causes (local) delete of first word.
