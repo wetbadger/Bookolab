@@ -28,7 +28,6 @@ Pages do not possess a hard character or layout ceiling while being actively mod
 ### 3. Credit-Based Self-Moderation Topology
 The platform self-moderates through an automated economy balancing literary contribution against editorial control:
 * **Earning Credits:** Authors accumulate **Delete Credits** dynamically when their contributed words receive community `Likes`. 
-* **Volatile Deletion Costs:** The cost to delete an offensive or out-of-context word fluctuates using a statistical algorithmic distribution. Words with high `Dislike` ratios shift downward across a uniform distribution curve. As a word moves multiple standard deviations ($\sigma$) away from the mean ($\mu$) popularity score of the active page, its deletion cost drops exponentially, allowing verified high-tier contributors to clear out spam effortlessly.
 
 ---
 
