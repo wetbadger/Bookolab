@@ -13,17 +13,13 @@ public class SlurDetector {
         if (input == null) {
             return null;
         }
-
-        // 1. Decompose characters (e.g., "Ć" becomes "C" + "combining acute accent")
         String normalized = Normalizer.normalize(input, Normalizer.Form.NFD);
-
-        // 2. Remove all the combining accents, leaving just the base English letters
         return DIACRITICS_AND_ACCENTS.matcher(normalized).replaceAll("");
     }
 
     public boolean isSlur(String rawInput) {
-        String processed = flattenText(rawInput);              // Remove accents (Č -> C)
-        processed = processed.toLowerCase();                    // Lowercase everything
+        String processed = flattenText(rawInput);
+        processed = processed.toLowerCase();
         processed = processed.replace("1", "i")
                 .replace("0", "o")
                 .replace("3", "e")
@@ -34,9 +30,7 @@ public class SlurDetector {
                 .replace("7", "t")
                 .replace("8", "b")
                 .replace("9", "g");
-        processed = processed.replaceAll("[^a-z]", "");         // Remove spaces/punctuation
-
-        // Now the regex list can just be a list of plain English words!
+        processed = processed.replaceAll("[^a-z]", "");
         return processed.matches(".*(chink|coon|faggot|gook|kike|nigger|spearchucker|tranny).*");
     }
 }
