@@ -27,7 +27,6 @@ public class RestServiceApplication implements CommandLineRunner {
     @Autowired
     private PageRepository pageRepository;
 
-    // 1. Define the missing bean so Spring can find it anywhere in your app
     @Bean
     public RestClient.Builder restClientBuilder() {
         return RestClient.builder();
