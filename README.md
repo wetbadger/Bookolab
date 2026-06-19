@@ -197,7 +197,23 @@ sudo docker run --name bookolab-redis -p 6379:6379 -d redis
 ./mvnw spring-boot:run
 ```
 
-8. Navigate to src/collabbook and run 
+8. Navigate to src/booklab and run 
 ```Plaintext
 npm install && npm run dev
+```
+
+### And for production do:
+```Plaintext
+docker-compose --env-file .env-production up -d
+```
+*Make sure you have a .env-production file
+
+```Plaintext
+# Database Configuration
+DB_NAME=bookolab_db
+DB_USER=postgres
+DB_PASSWORD=production_secure_password_here
+
+# Security Secrets
+JWT_SECRET=your_super_secret_production_key_here
 ```

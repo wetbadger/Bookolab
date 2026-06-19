@@ -10,8 +10,8 @@
       <p>&copy; {{ currentYear }} </p>
       <div class="footer-links">
         <a href="https://example.com">Visit Our Github</a>
-        <a href="/privacy">Privacy Policy</a>
-        <a href="/terms">Terms of Service</a>
+        <router-link to="/privacy">Privacy Policy</router-link>
+        <router-link to="/terms">Terms of Service</router-link>
       </div>
     </div>
   </footer>
