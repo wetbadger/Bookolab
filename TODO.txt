@@ -8,10 +8,11 @@ Show how long ago a word was created
 Filter for ethnic slurs
 [done] Truncate the pages every 10 minutes
 [done] Delete words
-Rate limit accounts
+[done] Rate limit accounts
 Limit number of accounts per ip
 Leaderboard
 Use Cloudflare Turnstile to prevent robots from submitting
+Admin powers
 [done] Allow users to delete accounts (their words become anonymous)
 
 Bugs:
