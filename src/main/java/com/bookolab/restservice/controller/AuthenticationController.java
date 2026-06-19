@@ -28,7 +28,6 @@ public class AuthenticationController {
 
     @PostMapping("/signup")
     public ResponseEntity<?> register(@RequestBody RegisterOrLoginAuthorDto registerAuthorDto) {
-        // 1. Check for password security (400 Bad Request is best practice here)
         if (!isPasswordSecure(registerAuthorDto.getPassword())) {
             return ResponseEntity
                     .status(HttpStatus.BAD_REQUEST)
@@ -41,8 +40,6 @@ public class AuthenticationController {
                     .body(new ErrorResponseDto("Username must not contain ethnic slurs."));
         }
 
-        // 2. Delegate to service. If it throws UsernameAlreadyExistsException,
-        // the @RestControllerAdvice intercepts it instantly!
         Author author = authenticationService.signup(registerAuthorDto);
 
         return ResponseEntity.ok(author);
@@ -58,16 +55,13 @@ public class AuthenticationController {
 
     @DeleteMapping("/delete-current-account")
     public ResponseEntity<?> deleteCurrentAccount() {
-        // 1. Grab the authentication object from the context
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
-        // 2. Extract the principal (usually your UserDetails object or username)
         assert authentication != null;
         Author author = (Author) authentication.getPrincipal();
 
         authenticationService.deleteAccount(author);
 
-        // Your deletion logic here...
         return ResponseEntity.ok().build();
     }
 
