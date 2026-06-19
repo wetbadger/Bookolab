@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: bookolab-postgres
+    env_file:
+      - .env-production
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - bookolab-network
+
+  redis:
+    image: redis:alpine
+    container_name: bookolab-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - bookolab-network
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: bookolab-backend
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+      - redis
+    env_file:
+      - .env-production
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/${DB_NAME}
+      - SPRING_DATASOURCE_USERNAME=${DB_USER}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
+      - SPRING_DATA_REDIS_HOST=redis
+      - SPRING_DATA_REDIS_PORT=6379
+      - CORS_ALLOWED_ORIGIN=http://localhost  # Update to production domain later
+      - JWT_SECRET_KEY=${JWT_SECRET}
+    volumes:
+      - ./src/main/resources/private.key:/app/src/main/resources/private.key
+      - ./src/main/resources/public.key:/app/src/main/resources/public.key
+    networks:
+      - bookolab-network
+
+  frontend:
+    build:
+      context: ./src/bookolab
+      dockerfile: Dockerfile.frontend
+    container_name: bookolab-frontend
+    ports:
+      - "80:80"
+    environment:
+      - VITE_API_BASE_URL=http://localhost:8080
+    depends_on:
+      - backend
+    networks:
+      - bookolab-network
+
+volumes:
+  pgdata:
+
+networks:
+  bookolab-network:
+    driver: bridge

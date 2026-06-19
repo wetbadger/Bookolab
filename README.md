@@ -201,3 +201,7 @@ sudo docker run --name bookolab-redis -p 6379:6379 -d redis
 ```Plaintext
 npm install && npm run dev
 ```
+Or just do:
+```Plaintext
+docker-compose up --build -d
+```

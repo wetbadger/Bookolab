@@ -3,13 +3,17 @@ package com.bookolab.restservice.service;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.io.Decoders;
-import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ClassPathResource; // 🚀 Added
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
-import java.security.Key;
+import java.io.InputStream; // 🚀 Added
+import java.security.KeyFactory;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.spec.X509EncodedKeySpec;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -17,10 +21,11 @@ import java.util.function.Function;
 
 @Service
 public class JwtService {
-    //    @Value("${security.jwt.secret-key}")
-    //    private String secretKey;
-    private static final String PRIVATE_KEY_PATH = "src/main/resources/private.key";
-    private static final String PUBLIC_KEY_PATH = "src/main/resources/public.key";
+
+    // 🚀 Look for the keys at the root of the classpath
+    private static final String PRIVATE_KEY_NAME = "private.key";
+    private static final String PUBLIC_KEY_NAME = "public.key";
+
     @Value("${security.jwt.expiration-time}")
     private Long jwtExpiration;
 
@@ -81,33 +86,39 @@ public class JwtService {
                 .getBody();
     }
 
-    private java.security.PrivateKey getPrivateKey() {
+    private PrivateKey getPrivateKey() {
         try {
-            String key = new java.lang.String(java.nio.file.Files.readAllBytes(java.nio.file.Paths.get(PRIVATE_KEY_PATH)))
+            // 🚀 Read from classpath stream instead of direct filesystem path
+            InputStream is = new ClassPathResource(PRIVATE_KEY_NAME).getInputStream();
+            String key = new String(is.readAllBytes())
                     .replace("-----BEGIN PRIVATE KEY-----", "")
                     .replace("-----END PRIVATE KEY-----", "")
                     .replaceAll("\\s+", "");
+
             byte[] decode = java.util.Base64.getDecoder().decode(key);
-            java.security.spec.PKCS8EncodedKeySpec keySpec = new java.security.spec.PKCS8EncodedKeySpec(decode);
-            java.security.KeyFactory keyFactory = java.security.KeyFactory.getInstance("EC");
+            PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(decode);
+            KeyFactory keyFactory = KeyFactory.getInstance("EC");
             return keyFactory.generatePrivate(keySpec);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to load EC private key", e);
+            throw new RuntimeException("Failed to load EC private key from classpath", e);
         }
     }
 
-    private java.security.PublicKey getPublicKey() {
+    private PublicKey getPublicKey() {
         try {
-            String key = new java.lang.String(java.nio.file.Files.readAllBytes(java.nio.file.Paths.get(PUBLIC_KEY_PATH)))
+            // 🚀 Read from classpath stream instead of direct filesystem path
+            InputStream is = new ClassPathResource(PUBLIC_KEY_NAME).getInputStream();
+            String key = new String(is.readAllBytes())
                     .replace("-----BEGIN PUBLIC KEY-----", "")
                     .replace("-----END PUBLIC KEY-----", "")
                     .replaceAll("\\s+", "");
+
             byte[] decode = java.util.Base64.getDecoder().decode(key);
-            java.security.spec.X509EncodedKeySpec keySpec = new java.security.spec.X509EncodedKeySpec(decode);
-            java.security.KeyFactory keyFactory = java.security.KeyFactory.getInstance("EC");
+            X509EncodedKeySpec keySpec = new X509EncodedKeySpec(decode);
+            KeyFactory keyFactory = KeyFactory.getInstance("EC");
             return keyFactory.generatePublic(keySpec);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to load EC public key", e);
+            throw new RuntimeException("Failed to load EC public key from classpath", e);
         }
     }
 }
