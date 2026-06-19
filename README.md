@@ -197,7 +197,7 @@ sudo docker run --name bookolab-redis -p 6379:6379 -d redis
 ./mvnw spring-boot:run
 ```
 
-8. Navigate to src/collabbook and run 
+8. Navigate to src/booklab and run 
 ```Plaintext
 npm install && npm run dev
 ```
