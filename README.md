@@ -1,6 +1,6 @@
 # 📖 The Distributed Ledger Novel (Collaborative Book App)
 
-A real-time, multi-user collaborative writing engine where an infinite book is composed word-by-word. This application bypasses traditional blob/text-storage paradigms by rendering a single continuous book using an un-fractured **Distributed Linear Linked List Map** across a Spring Boot microservice mesh and a reactive Vue 3 client.
+A real-time, multi-user collaborative writing engine where an infinite book is composed word-by-word. This application bypasses traditional blob/text-storage paradigms by rendering a single continuous book using an un-fractured **Distributed Linear Linked List Map** across a Spring Boot microservice mesh and a reactive Vue 3 client. Linked lists are used because insertion time is O(1) and there could be a lot of insertions happening simultaneously.
 
 ---
 
@@ -27,13 +27,14 @@ Pages do not possess a hard character or layout ceiling while being actively mod
 
 ### 3. Credit-Based Self-Moderation Topology
 The platform self-moderates through an automated economy balancing literary contribution against editorial control:
-* **Earning Credits:** Authors accumulate **Delete Credits** dynamically when their contributed words receive community `Likes`. 
+* **Earning Credits:** Authors accumulate **Delete Credits** dynamically when their contributed words receive community `Likes`.
+* **Leaderboard:** A leaderboard displays the authors with the most likes.
 
 ---
 
 ## 📡 The Real-Time Network Pipeline
 
-We configured a low-latency bidirectional pipeline that bypasses standard REST overhead for real-time writing synchronization:
+We use WebSockets for real-time writing synchronization:
 
 * **Inbound Messaging Broker:** The Vue layer bypasses the `/api` handler route, establishing a native secure `wss://` handshake directly to the root socket broker endpoint `/gs-guide-websocket` to pass Spring Boot origin checks.
 * **Dynamic Room Subscriptions:** Pinia monitors active routing states via `fetchPage(id)`. When a user changes pages, the store cleanly unsubscribes from the old page cluster and locks into a page-specific room: `/topic/page/{currentPageId}`.
@@ -65,7 +66,7 @@ The Vue Router utilizes modern return-based architecture to shield authenticated
 * **Interception Query Forwarding:** If authentication fails, the guard returns a redirection payload holding a reactive dynamic query context: `{ path: '/login', query: { redirectFrom: to.fullPath } }`.
 * **Link Propagation:** The application wraps all toggle buttons and cross-auth references inside bounded paths (`:to="{ path: '/signup', query: route.query }"`) ensuring the destination fallback is passed between auth views seamlessly if a user hops back and forth between screens.
 
-### 3. Race-Condition Proof WebSocket Handshaking
+### 3. WebSocket Handshaking
 Because asynchronous routing triggers faster than storage persistence cycles can settle, mounting page views instantly can drop the WebSocket authorization layer during page redirects.
 The application solves this by wrapping socket generation inside an atomic reactive safety watcher:
 * Upon mounting, `initializeSocketSafely()` checks the store for active token state.
