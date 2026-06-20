@@ -1,5 +1,11 @@
 package com.bookolab.restservice.service;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.bookolab.restservice.dto.UserReactionStats;
 import com.bookolab.restservice.enums.ReactionType;
 import com.bookolab.restservice.model.Author;
@@ -7,11 +13,6 @@ import com.bookolab.restservice.model.Word;
 import com.bookolab.restservice.repository.AuthorRepository;
 import com.bookolab.restservice.repository.ReactionRepository;
 import com.bookolab.restservice.repository.WordRepository;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ReactionStatsService {
@@ -64,6 +65,9 @@ public class ReactionStatsService {
         }
     }
 
+    /*
+    Broadcasts the loss of likes and dislikes, such as when a word is deleted
+     */
     @Transactional
     public void broadcastSubtractionOfLikesAndDislikesForWord(Long wordId) {
         try {
@@ -97,6 +101,27 @@ public class ReactionStatsService {
                     " received stats - Likes: " + totalLikesReceived +
                     ", Dislikes: " + totalDislikesReceived);
             */
+        } catch (Exception e) {
+            System.err.println("❌ Failed to broadcast user reaction stats: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    /*
+    Broadcasts the loss of likes and dislikes, such as when a word is deleted
+     */
+    @Transactional
+    public void broadcastNewCreditsSpent(Author author) {
+        try {
+
+            long data = author.getCreditsSpent();
+
+            // Send to the word author's private queue
+            messagingTemplate.convertAndSendToUser(
+                    author.getUsername(),
+                    "/queue/credits-spent",
+                    data
+            );
         } catch (Exception e) {
             System.err.println("❌ Failed to broadcast user reaction stats: " + e.getMessage());
             e.printStackTrace();

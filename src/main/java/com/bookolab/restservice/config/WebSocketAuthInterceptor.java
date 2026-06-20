@@ -103,7 +103,7 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
             if (StompCommand.SEND.equals(accessor.getCommand())) {
                 // Auth Check: Ensure user is authenticated
                 if (accessor.getUser() == null || accessor.getUser() instanceof AnonymousAuthenticationToken) {
-                    System.err.println("🚫 Anonymous session blocked from sending.");
+                    System.err.println("🚫 Anonymous session blocked from sending: " + accessor.getDestination().toString());
                     return null;
                 }
 

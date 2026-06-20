@@ -1,22 +1,24 @@
 package com.bookolab.restservice.controller;
 
-import com.bookolab.restservice.dto.DeletionResult;
-import com.bookolab.restservice.dto.WordNodeDto;
-import com.bookolab.restservice.model.Word;
-import com.bookolab.restservice.repository.AuthorRepository;
-import com.bookolab.restservice.service.ReactionStatsService;
-import com.bookolab.restservice.service.SlurDetector;
-import com.bookolab.restservice.service.WordService;
-import com.bookolab.restservice.model.Page;
-import com.bookolab.restservice.repository.PageRepository;
+import java.util.Map;
+import java.util.Optional;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Controller;
-import java.util.Map;
-import java.util.Optional;
+
+import com.bookolab.restservice.dto.DeletionResult;
+import com.bookolab.restservice.dto.WordNodeDto;
+import com.bookolab.restservice.model.Page;
+import com.bookolab.restservice.model.Word;
+import com.bookolab.restservice.repository.AuthorRepository;
+import com.bookolab.restservice.repository.PageRepository;
+import com.bookolab.restservice.service.ReactionStatsService;
+import com.bookolab.restservice.service.SlurDetector;
+import com.bookolab.restservice.service.WordService;
 
 @Controller
 public class WordWebSocketController {
@@ -78,10 +80,12 @@ public class WordWebSocketController {
         long wordId = Long.parseLong(String.valueOf(payload.get("wordId")));
         long currentPageId = Long.parseLong(String.valueOf(payload.get("currentPageId")));
 
-        // 2. Broadcast stats for the author whose word is being deleted
-        reactionStatsService.broadcastSubtractionOfLikesAndDislikesForWord(wordId);
-
         DeletionResult result = wordService.deleteWord(wordId, currentPageId, username);
+
+        if (!result.getValid()) {
+            // System.out.println("User be hacking.");
+            return;
+        }
 
         Long prevWordId = result.getPreviousWordId();
         WordNodeDto nextWord = result.getNextWord();

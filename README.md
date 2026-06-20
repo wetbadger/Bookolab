@@ -167,7 +167,13 @@ openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out private.key
 openssl pkey -in private.key -pubout -out public.key
 ```
 
-5. Install
+5. Start redis
+
+```Plaintext
+sudo docker run --name bookolab-redis -p 6379:6379 -d redis
+```
+
+6. Install
 
 Linux or mac:
 ```Plaintext
@@ -184,11 +190,6 @@ Get-Content .env | Foreach-Object {
 ```
 ```Plaintext
 mvn clean install
-```
-6. Start redis
-
-```Plaintext
-sudo docker run --name bookolab-redis -p 6379:6379 -d redis
 ```
 
 7. Run
