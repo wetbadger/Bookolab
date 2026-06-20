@@ -108,7 +108,7 @@ public class ReactionStatsService {
     }
 
     /*
-    Broadcasts the loss of likes and dislikes, such as when a word is deleted
+    Broadcasts the new number of spent credits
      */
     @Transactional
     public void broadcastNewCreditsSpent(Author author) {
