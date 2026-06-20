@@ -40,6 +40,8 @@ export const usePageStore = defineStore('pageStore', {
       this.stompClient = new Client({
         brokerURL: WS_BASE_URL,
         reconnectDelay: 5000,
+        heartbeatIncoming: 10000,
+        heartbeatOutgoing: 10000,
         connectHeaders: {
           Authorization: token ? `Bearer ${token}` : ''
         },
@@ -70,6 +72,7 @@ export const usePageStore = defineStore('pageStore', {
 
       this.stompClient.onConnect = (frame) => {
         // console.log('🎉 Connected to Spring STOMP Broker!');
+        this.error = null;
         const serverUser = frame.headers['user-name'];
         if (serverUser === 'anonymousUser') {
           localStorage.removeItem('token');
