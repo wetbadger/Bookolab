@@ -21,7 +21,7 @@ import { useAuthStore } from '@/stores/authStore';
 const pageStore = usePageStore();
 const authStore = useAuthStore();
 const credits = computed(() => {
-  return pageStore.getCredits() - pageStore.creditsUsedThisWindow
+  return pageStore.getCredits();
 });
 
 const isAuthenticated = computed(() => authStore.isAuthenticated);

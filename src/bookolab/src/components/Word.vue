@@ -59,10 +59,16 @@ const props = defineProps({
   wordId: { type: Number }
 });
 
-const credits = computed(() => props.data.likeCount - props.data.dislikeCount ); // TODO: make this based on std deviations
+const credits = computed(() => {
+  let additional = 0;
+  if (authStore.user && authStore.user.username === props.data.authorName) {
+    additional =  props.data.likeCount - props.data.dislikeCount;
+  }
+  return props.data.likeCount - props.data.dislikeCount + additional;
+});
 const userCredits = computed(() => {
-  return pageStore.getCredits() - pageStore.creditsUsedThisWindow;
-  //return authStore.getCredits() - pageStore.creditsUsedThisWindow;
+  return pageStore.getCredits();
+  //return authStore.getCredits();
 });
 
 const emit = defineEmits(['react']);
@@ -78,7 +84,6 @@ const deleteWord = () => {
     currentPageId: props.currentPageId,
     wordId: props.wordId
   });
-  pageStore.creditsUsedThisWindow += credits.value;
 };
 
 const toggleLike = () => {

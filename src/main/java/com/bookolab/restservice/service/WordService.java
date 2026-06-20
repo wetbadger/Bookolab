@@ -1,17 +1,8 @@
 package com.bookolab.restservice.service;
 
-import com.bookolab.restservice.dto.DeletionResult;
-import com.bookolab.restservice.dto.FlatLinkedWordDto;
-import com.bookolab.restservice.dto.WordNodeDto;
-import com.bookolab.restservice.enums.ReactionType;
-import com.bookolab.restservice.model.Author;
-import com.bookolab.restservice.model.Word;
-import com.bookolab.restservice.model.Page;
-import com.bookolab.restservice.repository.AuthorRepository;
-import com.bookolab.restservice.repository.PageRepository;
-import com.bookolab.restservice.repository.ReactionRepository;
-import com.bookolab.restservice.repository.WordRepository;
-import jakarta.annotation.Nullable;
+import java.util.List;
+import java.util.Objects;
+
 import org.jspecify.annotations.NullMarked;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -19,8 +10,19 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.util.List;
-import java.util.Objects;
+import com.bookolab.restservice.dto.DeletionResult;
+import com.bookolab.restservice.dto.FlatLinkedWordDto;
+import com.bookolab.restservice.dto.WordNodeDto;
+import com.bookolab.restservice.enums.ReactionType;
+import com.bookolab.restservice.model.Author;
+import com.bookolab.restservice.model.Page;
+import com.bookolab.restservice.model.Word;
+import com.bookolab.restservice.repository.AuthorRepository;
+import com.bookolab.restservice.repository.PageRepository;
+import com.bookolab.restservice.repository.ReactionRepository;
+import com.bookolab.restservice.repository.WordRepository;
+
+import jakarta.annotation.Nullable;
 
 @Service
 @NullMarked
@@ -30,13 +32,15 @@ public class WordService {
     private final PageRepository pageRepository;
     private final AuthorRepository authorRepository;
     private final ReactionRepository reactionRepository;
+    private final ReactionStatsService reactionStatsService;
 
     // Update constructor injection
-    public WordService(WordRepository wordRepository, PageRepository pageRepository, AuthorRepository authorRepository, ReactionRepository reactionRepository) {
+    public WordService(WordRepository wordRepository, PageRepository pageRepository, AuthorRepository authorRepository, ReactionRepository reactionRepository, ReactionStatsService reactionStatsService) {
         this.wordRepository = wordRepository;
         this.pageRepository = pageRepository;
         this.authorRepository = authorRepository;
         this.reactionRepository = reactionRepository;
+        this.reactionStatsService = reactionStatsService;
     }
 
     @Transactional(readOnly = true)
@@ -231,9 +235,17 @@ public class WordService {
 
         long creditsRequired = likes - dislikes;
 
-        if (!hasEnoughDeleteCredits(author, creditsRequired)) {
-            // System.out.println("\uD83D\uDEAB User does not have enough delete credits.");
-            return new DeletionResult(null, null);
+        byte multiplier = 1;
+
+        if (wordToDelete.getAuthor() != null && wordToDelete.getAuthor().getId().equals(author.getId())) {
+            multiplier = 2;
+        }
+
+        if (!hasEnoughDeleteCredits(author, creditsRequired * multiplier)) {
+            System.out.println("\uD83D\uDEAB User does not have enough delete credits.");
+            DeletionResult result = new DeletionResult(null, null);
+            result.setValid(false);
+            return result;
         }
 
         Word nextWord = wordToDelete.getNextWord();
@@ -261,6 +273,9 @@ public class WordService {
 
         DeletionResult result = new DeletionResult(previousId, nextWordNodeDto);
 
+        // Broadcast stats for the author whose word is being deleted
+        reactionStatsService.broadcastSubtractionOfLikesAndDislikesForWord(wordToDelete.getId());
+
         patchPageBoundaries(wordToDelete, previousWord, nextWord);
 
         if (previousWord != null) {
@@ -274,6 +289,7 @@ public class WordService {
 
         author.incrementCreditsSpent(creditsRequired);
         authorRepository.save(author);
+        reactionStatsService.broadcastNewCreditsSpent(author);
         return result;
     }
 

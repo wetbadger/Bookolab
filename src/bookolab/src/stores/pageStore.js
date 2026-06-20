@@ -22,7 +22,6 @@ export const usePageStore = defineStore('pageStore', {
     totalPages: 1,
     truncationEventTrigger: 0,
     globalUpdatesSubscription: null,
-    creditsUsedThisWindow: 0, // returns to 0 on refresh
     userReactionCounts: {
       likesReceived: 0,
       dislikesReceived: 0
@@ -36,6 +35,7 @@ export const usePageStore = defineStore('pageStore', {
 
       // Assuming your JWT is saved in localStorage or another store
       const token = localStorage.getItem('token');
+      const authStore = useAuthStore();
 
       this.stompClient = new Client({
         brokerURL: WS_BASE_URL,
@@ -89,26 +89,29 @@ export const usePageStore = defineStore('pageStore', {
           }, 5000);
         });
 
-// 🚀 SUBSCRIBE TO USER'S OWN REACTION STATS
+        // SUBSCRIBE TO USER'S OWN REACTION STATS
         this.stompClient.subscribe('/user/queue/reaction-stats', (message) => {
           const stats = JSON.parse(message.body);
           this.userReactionCounts = {
             likesReceived: stats.likesReceived || 0,  // Updated field name
             dislikesReceived: stats.dislikesReceived || 0  // Updated field name
           };
-          /*
-          console.log("📊 You've received reactions - Likes: " +
-            this.userReactionCounts.likesReceived +
-            ", Dislikes: " + this.userReactionCounts.dislikesReceived);
-          */
         });
 
-// Request initial stats for the authenticated user
-// (This gets the user's OWN stats - how many likes/dislikes they've received)
-        this.stompClient.publish({
-          destination: '/app/get-my-reaction-stats',
-          body: JSON.stringify({})
+        // SUBSCRIBE TO USER'S OWN CREDITS SPENT
+        this.stompClient.subscribe('/user/queue/credits-spent', (message) => {
+          const creditsSpent = JSON.parse(message.body);
+          authStore.user.creditsSpent = creditsSpent;
         });
+
+        // Request initial stats for the authenticated user
+        // (This gets the user's OWN stats - how many likes/dislikes they've received)
+        if (authStore.user) {
+          this.stompClient.publish({
+            destination: '/app/get-my-reaction-stats',
+            body: JSON.stringify({})
+          });
+        }
 
         if (this.records?.id) {
           this.subscribeToPageTopic(this.records.id);
@@ -587,8 +590,12 @@ export const usePageStore = defineStore('pageStore', {
       }
     },
     getCredits() {
-      const authStore = useAuthStore();
-      return this.userReactionCounts.likesReceived - this.userReactionCounts.dislikesReceived - (authStore.user ? authStore.user.creditsSpent : 0);
+      const authStore = useAuthStore(); // ✅ Resolve directly during evaluation
+
+      const likes = this.userReactionCounts.likesReceived || 0;
+      const dislikes = this.userReactionCounts.dislikesReceived || 0;
+      const spent = authStore.user?.creditsSpent || 0;
+      return likes - dislikes - spent;
     },
     // A fast, non-crypto UUIDv4 look-alike generator for HTTP
     // TODO: make collisions less likely somehow

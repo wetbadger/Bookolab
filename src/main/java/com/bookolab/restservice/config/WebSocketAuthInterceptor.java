@@ -35,7 +35,7 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
     @Autowired
     private UserDetailsService userDetailsService;
 
-    // 🚀 Inject Redis-backed Bucket4j management components
+    // Inject Redis-backed Bucket4j management components
     @Autowired
     private ProxyManager<byte[]> proxyManager;
 
@@ -52,7 +52,7 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
         StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
 
         if (accessor != null) {
-            // --- 1. HANDLE CONNECTION INITIATION ---
+            // --- HANDLE CONNECTION INITIATION ---
             if (StompCommand.CONNECT.equals(accessor.getCommand())) {
                 String authorizationHeader = accessor.getFirstNativeHeader("Authorization");
 
@@ -85,9 +85,8 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
                         } catch (org.springframework.security.core.userdetails.UsernameNotFoundException ue) {
                             System.err.println("⚠️ Token valid, but user no longer exists in DB. Proceeding as Guest.");
                             setAnonymousUser(accessor);
-                        } catch (ExpiredJwtException e) {
-                            setAnonymousUser(accessor);
-                        } catch (SignatureException | MalformedJwtException | UnsupportedJwtException | IllegalArgumentException e) {
+                        } catch (ExpiredJwtException | SignatureException | MalformedJwtException |
+                                 UnsupportedJwtException | IllegalArgumentException e) {
                             setAnonymousUser(accessor);
                         } catch (Exception e) {
                             e.printStackTrace();
@@ -99,11 +98,11 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
                 }
             }
 
-            // --- 2. HANDLE SEND COMMANDS (AUTH CHECK + RATE LIMITING) ---
+            // --- HANDLE SEND COMMANDS (AUTH CHECK + RATE LIMITING) ---
             if (StompCommand.SEND.equals(accessor.getCommand())) {
                 // Auth Check: Ensure user is authenticated
                 if (accessor.getUser() == null || accessor.getUser() instanceof AnonymousAuthenticationToken) {
-                    System.err.println("🚫 Anonymous session blocked from sending.");
+                    System.err.println("🚫 Anonymous session blocked from sending: " + accessor.getDestination().toString());
                     return null;
                 }
 
@@ -134,10 +133,6 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
                     }
                 }
             }
-
-            // --- 3. CLEAN UP ON DISCONNECT ---
-            // 🚀 Wiping data block completely removed!
-            // Tokens persist securely inside Redis now, preserving limits across browser refreshes.
         }
         return message;
     }
