@@ -43,11 +43,11 @@ services:
       - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
       - SPRING_DATA_REDIS_HOST=redis
       - SPRING_DATA_REDIS_PORT=6379
-      - CORS_ALLOWED_ORIGIN=http://localhost  # Update to production domain later
+      - CORS_ALLOWED_ORIGIN=http://167.172.136.9  # Update to production domain later
       - JWT_SECRET_KEY=${JWT_SECRET}
     volumes:
-      - ./src/main/resources/private.key:/app/src/main/resources/private.key
-      - ./src/main/resources/public.key:/app/src/main/resources/public.key
+      - ./src/main/resources/private.key:/app/private.key
+      - ./src/main/resources/public.key:/app/public.key
     networks:
       - bookolab-network
 
@@ -55,11 +55,11 @@ services:
     build:
       context: ./src/bookolab
       dockerfile: Dockerfile.frontend
+      args:
+        - VITE_API_BASE_URL=http://167.172.136.9
     container_name: bookolab-frontend
     ports:
       - "80:80"
-    environment:
-      - VITE_API_BASE_URL=http://localhost
     depends_on:
       - backend
     networks:
