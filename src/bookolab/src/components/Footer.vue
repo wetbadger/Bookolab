@@ -9,7 +9,7 @@
     <div class="footer-content">
       <p>&copy; {{ currentYear }} </p>
       <div class="footer-links">
-        <a href="https://example.com">Visit Our Github</a>
+        <a href="https://github.com/wetbadger/Bookolab">Visit Our Github</a>
         <router-link to="/privacy">Privacy Policy</router-link>
         <router-link to="/terms">Terms of Service</router-link>
       </div>
