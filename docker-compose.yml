@@ -37,7 +37,7 @@ services:
       - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
       - SPRING_DATA_REDIS_HOST=redis
       - SPRING_DATA_REDIS_PORT=6379
-      - CORS_ALLOWED_ORIGIN=https://yourdomain.com  # CHANGED: Update to your real HTTPS domain
+      - CORS_ALLOWED_ORIGIN=https://bookolab.com  # CHANGED: Update to your real HTTPS domain
       - JWT_SECRET_KEY=${JWT_SECRET}
     volumes:
       - ./src/main/resources/private.key:/app/private.key
@@ -50,7 +50,7 @@ services:
       context: ./src/bookolab
       dockerfile: Dockerfile.frontend
       args:
-        - VITE_API_BASE_URL=https://yourdomain.com  # CHANGED: Update to your real HTTPS domain
+        - VITE_API_BASE_URL=https://bookolab.com  # CHANGED: Update to your real HTTPS domain
     container_name: bookolab-frontend
     depends_on:
       - backend
