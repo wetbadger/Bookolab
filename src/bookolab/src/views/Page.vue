@@ -127,13 +127,21 @@ const loadWords = async (streamWordsInRealTime, loadPlusSigns, isInstant = false
 
   while (currentWord) {
     const wordId = currentWord.id ? currentWord.id : lastWordIdOfPreviousPage.value;
+
+    // 🌟 Check for BOTH the flat nextWordId AND the nested nextWord.id fallback
+    const targetNextWordId = currentWord.nextWordId
+      ? Number(currentWord.nextWordId)
+      : (currentWord.nextWord?.id ? Number(currentWord.nextWord.id) : null);
+
+    const consistentKey = currentWord.localId ? currentWord.localId : 'db-' + Number(wordId);
+
     result.push({
       id: Number(wordId),
       content: currentWord.content,
-      nextWordId: currentWord?.nextWord?.id ? Number(currentWord.nextWord.id) : null,
+      nextWordId: targetNextWordId, // Fix pointer lookup
       showPlus: isInstant, // If instant mode, show the plus signs immediately!
       localId: currentWord.localId || null, // Keep the tracking ID bound if it exists
-      viewKey: currentWord.localId ? currentWord.localId : 'db-' + Number(wordId),
+      viewKey: consistentKey, // Keep key consistent
       likeCount: currentWord.likeCount || 0,
       dislikeCount: currentWord.dislikeCount || 0,
       authorName: currentWord.authorName || 'Anonymous',
@@ -147,7 +155,7 @@ const loadWords = async (streamWordsInRealTime, loadPlusSigns, isInstant = false
       if (props.isEditMode) {
         // Switched to edit mode mid load
         loadPlusSigns = true;
-        delay1 = 0;
+        delay1 = 0; // 🎯 Restored exactly as you had it
       }
       await delay(delay1);
     }

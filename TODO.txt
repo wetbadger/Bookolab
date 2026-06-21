@@ -16,6 +16,7 @@ Admin powers
 [done] Allow users to delete accounts (their words become anonymous)
 Ability to download book in current state.
 Different actions (like log in or download) cost more rate tokens than other actions.
+Stop the backend from accepting any words with spaces
 
 Bugs:
 [fixed] Anonymous users can't see site changes without a session token.

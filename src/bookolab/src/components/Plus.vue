@@ -92,22 +92,24 @@ const submitWord = () => {
   const currentLocalId = localId;
   const currentPageId = props.currentPageId;
 
-  // OPTIMISTIC PASS: Broadcast immediately to layout to construct the next inline button
+  // 1. Broadcast to layout to construct the next inline node and focus it
   emit('submit', {
     id: null,
     localId: currentLocalId,
     content: trimmedWord,
-    previous: props.previous,         // Pure Long (or null)
-    next: props.next,                 // Pure Long (or null)
-    previousLocalId: props.previousLocalId // Pure String UUID (or null)
+    previous: props.previous,
+    next: props.next,
+    previousLocalId: props.previousLocalId
   });
 
-  // Re-initialize this UI input slot completely so it is ready for reuse
+  // 2. Clear out the value so it doesn't double-post if clicked again
   newWord.value = '';
+
+  // Allow the input state to clear out softly, letting Page.vue handle next-box targeting.
   isComponentEditing.value = false;
   localId = null;
 
-// Look for your pageStore.sendWordViaWebSocket line and change it to pass an object:
+  // 3. Fire to backend
   pageStore.sendWordViaWebSocket({
     content: trimmedWord,
     currentPageId: currentPageId,

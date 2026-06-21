@@ -68,8 +68,9 @@ public class WordWebSocketController {
 
         Long nextId = savedDatabaseWord.getNextWord() != null ? savedDatabaseWord.getNextWord().getId() : null;
 
-        FlatLinkedWordDto dto = new com.bookolab.restservice.dto.FlatLinkedWordDto(
+        FlatLinkedWordDto dto = new FlatLinkedWordDto(
                 savedDatabaseWord.getId(),
+                localId,
                 savedDatabaseWord.getContent(),
                 nextId,
                 previousWordId,

@@ -2,6 +2,7 @@ package com.bookolab.restservice.dto;
 
 public class FlatLinkedWordDto {
     private Long id;
+    private String localId;
     private String content;
     private Long nextWordId;
     private Long previousWordId;
@@ -9,8 +10,9 @@ public class FlatLinkedWordDto {
     private long likeCount = 0;
     private long dislikeCount = 0;
 
-    public FlatLinkedWordDto(Long id, String content, Long nextWordId, Long previousWordId, String authorName) {
+    public FlatLinkedWordDto(Long id, String localId, String content, Long nextWordId, Long previousWordId, String authorName) {
         this.id = id;
+        this.localId = localId;
         this.content = content;
         this.nextWordId = nextWordId;
         this.previousWordId = previousWordId;
@@ -19,6 +21,12 @@ public class FlatLinkedWordDto {
 
     // Getters and Setters
     public Long getId() { return id; }
+    public String getLocalId() {
+        return this.localId;
+    }
+    public void setLocalId(String localId) {
+        this.localId = localId;
+    }
     public String getContent() { return content; }
     public Long getNextWordId() { return nextWordId; }
     public void setNextWordId(Long nextWordId) { this.nextWordId = nextWordId; }

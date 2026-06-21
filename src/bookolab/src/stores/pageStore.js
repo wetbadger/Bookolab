@@ -267,16 +267,16 @@ export const usePageStore = defineStore('pageStore', {
 
       // 1. Conflict Resolution: Prevent duplicate insertions
       if (this.findWordInRecords(newWord.id || newWord.localId)) {
-        // console.log(`✅ Word "${newWord.content}" already accounted for in store.`);
         return;
       }
 
-      // 2. Build the correct node structure matching your new FlatLinkedWordDto
+      // 2. Build a nested-compatible node, but keep nextWordId flat for the UI components
       const newNode = {
         id: newWord.id,
-        localId: newWord.localId,
+        localId: newWord.localId || null, // Preserve client-side temporary ID if it exists
         content: newWord.content,
-        nextWord: null, // Initialized as null, will be wired below
+        nextWord: null, // Will hold the nested object link
+        nextWordId: newWord.nextWordId, // Will hold the flat ID for Vue props
         authorName: newWord.authorName || newWord.authorUsername || 'Anonymous',
         likeCount: newWord.likeCount || 0,
         dislikeCount: newWord.dislikeCount || 0
@@ -295,29 +295,27 @@ export const usePageStore = defineStore('pageStore', {
       }
 
       // 4. CASE B: Prepend to the beginning of the page
-      // Check if this new word is pointing to our current first word
       if (newWord.nextWordId && Number(this.records.firstWord.id) === Number(newWord.nextWordId)) {
         newNode.nextWord = this.records.firstWord;
         this.records.firstWord = newNode;
         return;
       }
 
-      // 5. CASE C: Appended to the very end of THIS page
-      // Triggered if nextWordId is missing OR if it points directly to the start of the NEXT page
+      // 5. CASE C: Append to the very end of THIS page
       const isPointingToNextPage = newWord.nextWordId &&
         Number(newWord.nextWordId) === Number(this.nextPageFirstWordId);
 
       if (!newWord.nextWordId || isPointingToNextPage) {
-        // Find the current tail node on this page by navigating the active memory pointers
         let tail = this.records.firstWord;
         while (tail.nextWord) {
           tail = tail.nextWord;
         }
 
-        // Attach our new node to the end of the current page chain link
+        // Nest the object link
         tail.nextWord = newNode;
+        // Also update the flat pointer so the template doesn't miss it
+        tail.nextWordId = newNode.id;
 
-        // Synchronize the top-level page metadata boundaries safely
         this.records.lastWord = {
           id: newNode.id,
           content: newNode.content,
@@ -330,10 +328,14 @@ export const usePageStore = defineStore('pageStore', {
       // 6. CASE D: Mid-chain Splicing (Splicing between existing words)
       let current = this.records.firstWord;
       while (current) {
-        // Look ahead to find where this word inserts itself dynamically
+        // Trace using the nested .nextWord object pointer, matching against the new flat nextWordId
         if (current.nextWord && Number(current.nextWord.id) === Number(newWord.nextWordId)) {
           const oldNext = current.nextWord;
+
+          // Splice the new node in natively
           current.nextWord = newNode;
+          current.nextWordId = newNode.id; // Sync flat pointer
+
           newNode.nextWord = oldNext;
           break;
         }

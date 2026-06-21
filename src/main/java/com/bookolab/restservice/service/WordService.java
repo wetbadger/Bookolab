@@ -66,7 +66,7 @@ public class WordService {
                 .map(Word::getId)
                 .orElse(null); // Returns null if this word is the head of the list
         
-        FlatLinkedWordDto flatLinkedWordDto = new FlatLinkedWordDto(word.getId(), word.getContent(), nextWordId, previousWordId, authorName);
+        FlatLinkedWordDto flatLinkedWordDto = new FlatLinkedWordDto(word.getId(), word.getLocalId(), word.getContent(), nextWordId, previousWordId, authorName);
 
         return flatLinkedWordDto;
     }

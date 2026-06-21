@@ -70,8 +70,8 @@ public class PageService {
         Long lastNextId = (last != null && last.getNextWord() != null) ? last.getNextWord().getId() : null;
         Long lastPreviousWordId = wordRepository.findByNextWord(last).map(Word::getId).orElse(null);
 
-        FlatLinkedWordDto firstWordDto = first != null ? new FlatLinkedWordDto(first.getId(), first.getContent(), firstNextId, firstPreviousWordId, firstAuthorName) : null;
-        FlatLinkedWordDto lastWordDto = last != null ? new FlatLinkedWordDto(last.getId(), last.getContent(), lastNextId, lastPreviousWordId, lastAuthorName) : null;
+        FlatLinkedWordDto firstWordDto = first != null ? new FlatLinkedWordDto(first.getId(), first.getLocalId(), first.getContent(), firstNextId, firstPreviousWordId, firstAuthorName) : null;
+        FlatLinkedWordDto lastWordDto = last != null ? new FlatLinkedWordDto(last.getId(), last.getLocalId(), last.getContent(), lastNextId, lastPreviousWordId, lastAuthorName) : null;
 
         // 🚀 Add individual checks for the flat layout boundaries
         if (firstWordDto != null) {
@@ -184,7 +184,7 @@ public class PageService {
                     .map(Word::getId)
                     .orElse(null);
             String lastWordAuthorName = lastEntity.getAuthor() != null ? lastEntity.getAuthor().getUsername() : "Anonymous";
-            flatLastWord = new FlatLinkedWordDto(lastEntity.getId(), lastEntity.getContent(), nextId, previousWordId, lastWordAuthorName);
+            flatLastWord = new FlatLinkedWordDto(lastEntity.getId(), lastEntity.getLocalId(), lastEntity.getContent(), nextId, previousWordId, lastWordAuthorName);
 
             // Enforce counts on the standalone flatLastWord DTO as well
             if (flatLastWord != null) {
