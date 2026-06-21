@@ -53,7 +53,6 @@ public class SecurityConfiguration {
                         .requestMatchers("/api/words/**").permitAll()
                         .requestMatchers("/api/authors/**").permitAll()
                         .requestMatchers("/api/leaderboard").permitAll()
-                        .requestMatchers("/authors/**").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/pages/**").permitAll()
 
                         // 4. Fallback
