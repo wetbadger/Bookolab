@@ -144,7 +144,9 @@ User Action: User clicks a + boundary split slot, types a word, and hits enter.
 
 See the [postgres docs](https://www.postgresql.org/docs/) on how to do this.
 
-2. Create a .env file in the root folder that looks like this:
+2. If you are running this for the first time, rename src/main/resources/_data.sql to data.sql.
+
+3. Create a .env file in the root folder that looks like this:
 
 ```Plaintext
 SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/bookolab_db
@@ -154,26 +156,26 @@ CORS_ALLOWED_ORIGIN=http://localhost:5173
 JWT_SECRET_KEY=abcd1234
 ```
 
-3. Create a .env file in the src/collabbook directory that looks like this:
+4. Create a .env file in the src/collabbook directory that looks like this:
 
 ```Plaintext
 VITE_API_BASE_URL=http://localhost:8080
 ```
 
-4. Navigate to src/main/resources  and generate a private and public key 
+5. Navigate to src/main/resources  and generate a private and public key 
 
 ```Plaintext
 openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out private.key
 openssl pkey -in private.key -pubout -out public.key
 ```
 
-5. Start redis
+6. Start redis
 
 ```Plaintext
 sudo docker run --name bookolab-redis -p 6379:6379 -d redis
 ```
 
-6. Install
+7. Install
 
 Linux or mac:
 ```Plaintext
@@ -192,13 +194,13 @@ Get-Content .env | Foreach-Object {
 mvn clean install
 ```
 
-7. Run
+8. Run
 
 ```Plaintext
 ./mvnw spring-boot:run
 ```
 
-8. Navigate to src/booklab and run 
+9. Navigate to src/booklab and run 
 ```Plaintext
 npm install && npm run dev
 ```
