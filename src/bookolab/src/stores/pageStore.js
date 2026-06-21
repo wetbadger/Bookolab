@@ -179,7 +179,7 @@ export const usePageStore = defineStore('pageStore', {
       this.currentSubscription = this.stompClient.subscribe(`/topic/page/${pageId}`, (message) => {
         // Fix: Parse the message body into our inboundPayload variable
         const inboundPayload = JSON.parse(message.body);
-        // console.log("🔥 Incoming WebSocket payload caught:", inboundPayload);
+        console.log("🔥 Incoming WebSocket payload caught:", inboundPayload);
 
         // Check if the payload is a cross-page boundary patch command
         if (inboundPayload.type === "PREVIOUS_PAGE_TAIL_CHANGED" ||
@@ -261,6 +261,7 @@ export const usePageStore = defineStore('pageStore', {
     },
 
     // Manipulate the linked list records directly inside Pinia
+// Manipulate the linked list records directly inside Pinia
     insertWordIntoRecords(newWord) {
       if (!this.records) return;
 
@@ -270,15 +271,15 @@ export const usePageStore = defineStore('pageStore', {
         return;
       }
 
-      // 2. Build the correct node structure matching Spring's entity
+      // 2. Build the correct node structure matching your new FlatLinkedWordDto
       const newNode = {
         id: newWord.id,
         localId: newWord.localId,
         content: newWord.content,
-        nextWord: null,
-        authorName: newWord.author ? newWord.author.username : 'Anonymous',
-        likeCount: 0,
-        dislikeCount: 0
+        nextWord: null, // Initialized as null, will be wired below
+        authorName: newWord.authorName || newWord.authorUsername || 'Anonymous',
+        likeCount: newWord.likeCount || 0,
+        dislikeCount: newWord.dislikeCount || 0
       };
 
       // 3. CASE A: List is completely empty
@@ -294,18 +295,19 @@ export const usePageStore = defineStore('pageStore', {
       }
 
       // 4. CASE B: Prepend to the beginning of the page
-      if (this.records.firstWord && newWord.nextWord && this.records.firstWord.id === newWord.nextWord.id) {
+      // Check if this new word is pointing to our current first word
+      if (newWord.nextWordId && Number(this.records.firstWord.id) === Number(newWord.nextWordId)) {
         newNode.nextWord = this.records.firstWord;
         this.records.firstWord = newNode;
         return;
       }
 
       // 5. CASE C: Appended to the very end of THIS page
-      // Triggered if nextWord is completely null OR if it points to the start of the NEXT page
-      const isPointingToNextPage = newWord.nextWord &&
-                                   Number(newWord.nextWord.id) === Number(this.nextPageFirstWordId);
+      // Triggered if nextWordId is missing OR if it points directly to the start of the NEXT page
+      const isPointingToNextPage = newWord.nextWordId &&
+        Number(newWord.nextWordId) === Number(this.nextPageFirstWordId);
 
-      if (!newWord.nextWord || isPointingToNextPage) {
+      if (!newWord.nextWordId || isPointingToNextPage) {
         // Find the current tail node on this page by navigating the active memory pointers
         let tail = this.records.firstWord;
         while (tail.nextWord) {
@@ -325,10 +327,11 @@ export const usePageStore = defineStore('pageStore', {
         return;
       }
 
-      // 6. CASE D: Mid-chain Splicing (Strictly for items falling between existing words)
+      // 6. CASE D: Mid-chain Splicing (Splicing between existing words)
       let current = this.records.firstWord;
       while (current) {
-        if (current.nextWord && current.nextWord.id === newWord.nextWord.id) {
+        // Look ahead to find where this word inserts itself dynamically
+        if (current.nextWord && Number(current.nextWord.id) === Number(newWord.nextWordId)) {
           const oldNext = current.nextWord;
           current.nextWord = newNode;
           newNode.nextWord = oldNext;

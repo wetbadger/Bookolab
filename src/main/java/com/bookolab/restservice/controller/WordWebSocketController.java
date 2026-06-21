@@ -3,6 +3,7 @@ package com.bookolab.restservice.controller;
 import java.util.Map;
 import java.util.Optional;
 
+import com.bookolab.restservice.dto.FlatLinkedWordDto;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -65,9 +66,19 @@ public class WordWebSocketController {
             return;
         }
 
+        Long nextId = savedDatabaseWord.getNextWord() != null ? savedDatabaseWord.getNextWord().getId() : null;
+
+        FlatLinkedWordDto dto = new com.bookolab.restservice.dto.FlatLinkedWordDto(
+                savedDatabaseWord.getId(),
+                savedDatabaseWord.getContent(),
+                nextId,
+                previousWordId,
+                savedDatabaseWord.getAuthor().getUsername()
+        );
+
         Map<String, Object> wordAction = Map.of(
                 "type", "CREATE_WORD",
-                "word", savedDatabaseWord
+                "word", dto
         );
 
         // 2. Broadcast the fresh word to the active page right away

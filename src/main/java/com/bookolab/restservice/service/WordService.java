@@ -56,7 +56,8 @@ public class WordService {
     public FlatLinkedWordDto getFlatWordById(Long id) {
         Word word = wordRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Word not found"));
-        
+
+        String authorName = word.getAuthor() != null ? word.getAuthor().getUsername() : "Anonymous";
         // Find next ID safely
         Long nextWordId = (word.getNextWord() != null) ? word.getNextWord().getId() : null;
         
@@ -65,7 +66,7 @@ public class WordService {
                 .map(Word::getId)
                 .orElse(null); // Returns null if this word is the head of the list
         
-        FlatLinkedWordDto flatLinkedWordDto = new FlatLinkedWordDto(word.getId(), word.getContent(), nextWordId, previousWordId);
+        FlatLinkedWordDto flatLinkedWordDto = new FlatLinkedWordDto(word.getId(), word.getContent(), nextWordId, previousWordId, authorName);
 
         return flatLinkedWordDto;
     }

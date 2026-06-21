@@ -61,15 +61,17 @@ public class PageService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Page not found"));
 
         Word first = page.getFirstWord();
+        String firstAuthorName = first.getAuthor() != null ? first.getAuthor().getUsername() : "Anonymous";
         Word last = page.getLastWord();
+        String lastAuthorName = last.getAuthor() != null ? last.getAuthor().getUsername() : "Anonymous";
 
         Long firstNextId = (first != null && first.getNextWord() != null) ? first.getNextWord().getId() : null;
         Long firstPreviousWordId = wordRepository.findByNextWord(first).map(Word::getId).orElse(null);
         Long lastNextId = (last != null && last.getNextWord() != null) ? last.getNextWord().getId() : null;
         Long lastPreviousWordId = wordRepository.findByNextWord(last).map(Word::getId).orElse(null);
 
-        FlatLinkedWordDto firstWordDto = first != null ? new FlatLinkedWordDto(first.getId(), first.getContent(), firstNextId, firstPreviousWordId) : null;
-        FlatLinkedWordDto lastWordDto = last != null ? new FlatLinkedWordDto(last.getId(), last.getContent(), lastNextId, lastPreviousWordId) : null;
+        FlatLinkedWordDto firstWordDto = first != null ? new FlatLinkedWordDto(first.getId(), first.getContent(), firstNextId, firstPreviousWordId, firstAuthorName) : null;
+        FlatLinkedWordDto lastWordDto = last != null ? new FlatLinkedWordDto(last.getId(), last.getContent(), lastNextId, lastPreviousWordId, lastAuthorName) : null;
 
         // 🚀 Add individual checks for the flat layout boundaries
         if (firstWordDto != null) {
@@ -181,7 +183,8 @@ public class PageService {
             Long previousWordId = wordRepository.findByNextWord(currentEntity)
                     .map(Word::getId)
                     .orElse(null);
-            flatLastWord = new FlatLinkedWordDto(lastEntity.getId(), lastEntity.getContent(), nextId, previousWordId);
+            String lastWordAuthorName = lastEntity.getAuthor() != null ? lastEntity.getAuthor().getUsername() : "Anonymous";
+            flatLastWord = new FlatLinkedWordDto(lastEntity.getId(), lastEntity.getContent(), nextId, previousWordId, lastWordAuthorName);
 
             // Enforce counts on the standalone flatLastWord DTO as well
             if (flatLastWord != null) {
