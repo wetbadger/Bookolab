@@ -144,7 +144,7 @@ User Action: User clicks a + boundary split slot, types a word, and hits enter.
 
 See the [postgres docs](https://www.postgresql.org/docs/) on how to do this.
 
-2. If you are running this for the first time, rename src/main/resources/data.sql to data.sql.
+2. If you are running this for the first time, rename src/main/resources/import.sql to import.sql.
 
 3. Create a .env file in the root folder that looks like this:
 

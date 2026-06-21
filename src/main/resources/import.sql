@@ -1,6 +1,6 @@
--- Rename this to data.sql if you are using a fresh database
+-- Rename this to import.sql if you are using a fresh database
 
--- Add this to the absolute top of data.sql
+-- Add this to the absolute top of import.sql
 TRUNCATE TABLE page, word RESTART IDENTITY CASCADE;
 
 -- Page 1

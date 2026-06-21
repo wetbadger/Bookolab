@@ -15,8 +15,10 @@ import com.bookolab.restservice.model.Word;
 import com.bookolab.restservice.repository.PageRepository;
 import com.bookolab.restservice.repository.WordRepository;
 import com.bookolab.restservice.service.PageService;
+import org.springframework.test.context.ActiveProfiles;
 
 @SpringBootTest
+@ActiveProfiles("test")
 public class PageTests {
     @Autowired
     private PageService pageService;
