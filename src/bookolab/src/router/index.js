@@ -48,7 +48,7 @@ const routes = [
     component: Me
   },
   {
-    path: '/a/:username',
+    path: '/a/:name',
     name: 'author',
     component: Author,
     props: route => ({ username: route.params.name })

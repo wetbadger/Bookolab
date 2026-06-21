@@ -110,6 +110,8 @@ class WordTests {
         Word wordB = wordService.createWord(createTestWord("WordB"), testPage.getId(), "789ghi", wordA.getId(), null, testAuthor.getUsername());
 
         // Act: Delete the middleman (WordB)
+        testAuthor.setCreditsSpent(-100L);
+        authorRepository.save(testAuthor);
         wordService.deleteWord(wordB.getId(), 1L, testAuthor.getUsername());
 
         // Assert: WordB should be completely deleted
@@ -124,6 +126,8 @@ class WordTests {
     @Test
     void testDeleteWord_FirstWordOfPage_ShiftsPageBoundaryForward() {
         // Act: Delete WordA, which is currently the 'firstWord' boundary of testPage
+        testAuthor.setCreditsSpent(-100L);
+        authorRepository.save(testAuthor);
         wordService.deleteWord(wordA.getId(), 1L, testAuthor.getUsername());
 
         // Assert: The page should automatically shift its head boundary to WordC
@@ -142,6 +146,8 @@ class WordTests {
         singleWordPage = pageRepository.save(singleWordPage);
 
         // Act: Delete that single word
+        testAuthor.setCreditsSpent(-100L);
+        authorRepository.save(testAuthor);
         wordService.deleteWord(loneWord.getId(), singleWordPage.getId(), testAuthor.getUsername());
 
         // Assert: Page boundaries must fully collapse to null instead of holding broken pointers
