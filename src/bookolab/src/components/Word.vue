@@ -29,7 +29,7 @@
         </div>
 
         <div class="author-info">
-          By: <a :href="`/authors/${data.authorName || 'Anonymous'}`">{{ data.authorName || 'Anonymous' }}</a>
+          By: <a :href="`/a/${data.authorName || 'Anonymous'}`">{{ data.authorName || 'Anonymous' }}</a>
         </div>
         <BButton
           v-if="authStore.user && userCredits >= credits"
