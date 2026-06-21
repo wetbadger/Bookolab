@@ -42,6 +42,8 @@ services:
     volumes:
       - ./src/main/resources/private.key:/app/private.key
       - ./src/main/resources/public.key:/app/public.key
+    ports:
+      - "127.0.0.1:8081:8080"
     networks:
       - bookolab-network
 
@@ -54,24 +56,26 @@ services:
     container_name: bookolab-frontend
     depends_on:
       - backend
+    ports:
+      - "127.0.0.1:8080:80"
     networks:
       - bookolab-network
 
-  nginx:
-    image: nginx:alpine
-    container_name: bookolab-nginx
-    ports:
-      - "80:80"   # Handles HTTP (and redirects to HTTPS)
-      - "443:443" # Handles secure HTTPS traffic
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./certs:/etc/nginx/ssl:ro
-      - webroot:/usr/share/nginx/html
-    depends_on:
-      - frontend
-      - backend
-    networks:
-      - bookolab-network
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: bookolab-nginx
+  #   ports:
+  #     - "80:80"   # Handles HTTP (and redirects to HTTPS)
+  #     - "443:443" # Handles secure HTTPS traffic
+  #   volumes:
+  #     - ./nginx.conf:/etc/nginx/nginx.conf:ro
+  #     - ./certs:/etc/nginx/ssl:ro
+  #     - webroot:/usr/share/nginx/html
+  #   depends_on:
+  #     - frontend
+  #     - backend
+  #   networks:
+  #     - bookolab-network
 
 volumes:
   pgdata:
