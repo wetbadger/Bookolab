@@ -54,7 +54,7 @@ public class SecurityConfiguration {
                         .requestMatchers("/api/authors/**").permitAll()
                         .requestMatchers("/api/leaderboard").permitAll()
                         .requestMatchers("/authors/**").permitAll()
-                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/pages/*").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/pages/**").permitAll()
 
                         // 4. Fallback
                         .anyRequest().authenticated()
