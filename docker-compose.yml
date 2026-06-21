@@ -10,8 +10,6 @@ services:
       POSTGRES_DB: ${DB_NAME}
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
-    ports:
-      - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     networks:
@@ -20,8 +18,6 @@ services:
   redis:
     image: redis:alpine
     container_name: bookolab-redis
-    ports:
-      - "6379:6379"
     networks:
       - bookolab-network
 
@@ -30,8 +26,6 @@ services:
       context: .
       dockerfile: Dockerfile.backend
     container_name: bookolab-backend
-    ports:
-      - "8080:8080"
     depends_on:
       - postgres
       - redis
@@ -43,7 +37,7 @@ services:
       - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
       - SPRING_DATA_REDIS_HOST=redis
       - SPRING_DATA_REDIS_PORT=6379
-      - CORS_ALLOWED_ORIGIN=http://167.172.136.9  # Update to production domain later
+      - CORS_ALLOWED_ORIGIN=https://yourdomain.com  # CHANGED: Update to your real HTTPS domain
       - JWT_SECRET_KEY=${JWT_SECRET}
     volumes:
       - ./src/main/resources/private.key:/app/private.key
@@ -56,11 +50,24 @@ services:
       context: ./src/bookolab
       dockerfile: Dockerfile.frontend
       args:
-        - VITE_API_BASE_URL=http://167.172.136.9
+        - VITE_API_BASE_URL=https://yourdomain.com  # CHANGED: Update to your real HTTPS domain
     container_name: bookolab-frontend
-    ports:
-      - "80:80"
     depends_on:
+      - backend
+    networks:
+      - bookolab-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: bookolab-nginx
+    ports:
+      - "80:80"   # Handles HTTP (and redirects to HTTPS)
+      - "443:443" # Handles secure HTTPS traffic
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/ssl:ro
+    depends_on:
+      - frontend
       - backend
     networks:
       - bookolab-network
