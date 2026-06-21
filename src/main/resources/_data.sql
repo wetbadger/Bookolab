@@ -1,3 +1,5 @@
+-- Rename this to data.sql if you are using a fresh database
+
 -- Add this to the absolute top of data.sql
 TRUNCATE TABLE page, word RESTART IDENTITY CASCADE;
 
