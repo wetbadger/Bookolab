@@ -242,7 +242,7 @@ public class WordService {
             multiplier = 2;
         }
 
-        if (!hasEnoughDeleteCredits(author, creditsRequired * multiplier)) {
+        if (!hasEnoughDeleteCredits(author, creditsRequired * multiplier + 1)) {
             System.out.println("\uD83D\uDEAB User does not have enough delete credits.");
             DeletionResult result = new DeletionResult(null, null);
             result.setValid(false);
@@ -288,7 +288,7 @@ public class WordService {
         wordRepository.saveAndFlush(wordToDelete);
         wordRepository.delete(wordToDelete);
 
-        author.incrementCreditsSpent(creditsRequired);
+        author.incrementCreditsSpent(creditsRequired + 1);
         authorRepository.save(author);
         reactionStatsService.broadcastNewCreditsSpent(author);
         return result;

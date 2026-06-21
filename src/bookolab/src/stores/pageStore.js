@@ -40,7 +40,7 @@ export const usePageStore = defineStore('pageStore', {
       this.stompClient = new Client({
         brokerURL: WS_BASE_URL,
         reconnectDelay: 5000,
-        heartbeatIncoming: 10000,
+        heartbeatIncoming: 7000,
         heartbeatOutgoing: 10000,
         connectHeaders: {
           Authorization: token ? `Bearer ${token}` : ''

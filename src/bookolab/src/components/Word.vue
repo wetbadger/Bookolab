@@ -64,7 +64,7 @@ const credits = computed(() => {
   if (authStore.user && authStore.user.username === props.data.authorName) {
     additional =  props.data.likeCount - props.data.dislikeCount;
   }
-  return props.data.likeCount - props.data.dislikeCount + additional;
+  return props.data.likeCount - props.data.dislikeCount + additional + 1;
 });
 const userCredits = computed(() => {
   return pageStore.getCredits();
