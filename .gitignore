@@ -31,7 +31,10 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Env ###
 .env
 .env-production
 /src/main/resources/private.key
 /src/main/resources/public.key
+certs/
