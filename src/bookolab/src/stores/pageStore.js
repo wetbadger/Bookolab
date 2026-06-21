@@ -179,7 +179,7 @@ export const usePageStore = defineStore('pageStore', {
       this.currentSubscription = this.stompClient.subscribe(`/topic/page/${pageId}`, (message) => {
         // Fix: Parse the message body into our inboundPayload variable
         const inboundPayload = JSON.parse(message.body);
-        console.log("🔥 Incoming WebSocket payload caught:", inboundPayload);
+        // console.log("🔥 Incoming WebSocket payload caught:", inboundPayload);
 
         // Check if the payload is a cross-page boundary patch command
         if (inboundPayload.type === "PREVIOUS_PAGE_TAIL_CHANGED" ||
