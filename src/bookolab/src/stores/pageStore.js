@@ -64,10 +64,13 @@ export const usePageStore = defineStore('pageStore', {
         if (closeEvent.code === 1000 || closeEvent.wasClean) {
           return;
         }
+        console.log(closeEvent.code);
         // If it's an unclean drop, set the error state
+        /*
         if (!this.error) {
           this.error = "Connection lost. Attempting to reconnect...";
         }
+        */
       };
 
       this.stompClient.onConnect = (frame) => {
