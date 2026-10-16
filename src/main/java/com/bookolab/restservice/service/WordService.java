@@ -28,6 +28,8 @@ import jakarta.annotation.Nullable;
 @NullMarked
 public class WordService {
 
+    public static final String WHITESPACE_ERROR = "You can't have words with spaces.";
+
     private final WordRepository wordRepository;
     private final PageRepository pageRepository;
     private final AuthorRepository authorRepository;
@@ -101,6 +103,7 @@ public class WordService {
     public Word createWord(Word newWord, Long currentPageId, String localId,
                            @Nullable Long previousWordId, @Nullable String previousLocalId,
                            String username) {
+        validateNoWhitespace(newWord.getContent());
         newWord.setLocalId(localId);
 
         // FETCH THE AUTHENTICATED AUTHOR AND LINK THEM TO THE WORD
@@ -212,6 +215,7 @@ public class WordService {
 
     @Transactional
     public Word updateWord(Long id, Word wordDetails) {
+        validateNoWhitespace(wordDetails.getContent());
         return wordRepository.findById(id)
                 .map(existingWord -> {
                     existingWord.setContent(wordDetails.getContent());
@@ -321,5 +325,15 @@ public class WordService {
     public boolean hasEnoughDeleteCredits(Author author, Long creditsRequired) {
         // System.out.println(author.getUsername() + " spent " + author.getCreditsSpent() + " credits.");
         return reactionRepository.countLikesMinusDislikes(author.getId()) - author.getCreditsSpent() >= creditsRequired;
+    }
+
+    /*
+    The frontend already blocks words containing whitespace; this guards the API itself.
+    Null passes through so an empty submission keeps failing the same way it did before.
+    */
+    private static void validateNoWhitespace(@Nullable String content) {
+        if (content != null && content.matches(".*\\s.*")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, WHITESPACE_ERROR);
+        }
     }
 }

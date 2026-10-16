@@ -60,6 +60,11 @@ public class WordWebSocketController {
             return;
         }
 
+        if (content.matches(".*\\s.*")) {
+            messagingTemplate.convertAndSendToUser(username, "/queue/errors", WordService.WHITESPACE_ERROR);
+            return;
+        }
+
         Long previousWordId = payload.get("previousWordId") != null ?
                 Long.valueOf(String.valueOf(payload.get("previousWordId"))) : null;
         String previousLocalId = (String) payload.get("previousLocalId");
