@@ -28,6 +28,8 @@ import jakarta.annotation.Nullable;
 @NullMarked
 public class WordService {
 
+    public static final String WHITESPACE_ERROR = "You can't have words with spaces.";
+
     private final WordRepository wordRepository;
     private final PageRepository pageRepository;
     private final AuthorRepository authorRepository;
@@ -101,6 +103,7 @@ public class WordService {
     public Word createWord(Word newWord, Long currentPageId, String localId,
                            @Nullable Long previousWordId, @Nullable String previousLocalId,
                            String username) {
+        validateNoWhitespace(newWord.getContent());
         newWord.setLocalId(localId);
 
         // FETCH THE AUTHENTICATED AUTHOR AND LINK THEM TO THE WORD
@@ -153,7 +156,10 @@ public class WordService {
             }
             // Case 2: We are inserting a word right at the beginning of this page
             // (i.e., the previous word belonged to the prior page, and this page's old first word is now our next word)
-            else if (Objects.equals(currentPage.getFirstWord(), savedWord.getNextWord())) {
+            // Compare by ID: savedWord.getNextWord() may be an uninitialized lazy proxy, which is
+            // never identity-equal to the eagerly loaded firstWord entity.
+            else if (currentPage.getFirstWord() != null && savedWord.getNextWord() != null
+                    && Objects.equals(currentPage.getFirstWord().getId(), savedWord.getNextWord().getId())) {
                 currentPage.setFirstWord(savedWord);
             }
             // Case 3: We are appending to the very end of this page
@@ -208,19 +214,20 @@ public class WordService {
     }
 
     @Transactional
-    public Word updateWord(Long id, Word wordDetails) {
-        return wordRepository.findById(id)
-                .map(existingWord -> {
-                    existingWord.setContent(wordDetails.getContent());
-                    
-                    // Map the nextWord relationship safely
-                    if (wordDetails.getNextWord() != null) {
-                        existingWord.setNextWord(wordDetails.getNextWord());
-                    }
-                    
-                    return wordRepository.save(existingWord);
-                })
+    public Word updateWord(Long id, Word wordDetails, String username) {
+        validateNoWhitespace(wordDetails.getContent());
+        Word existingWord = wordRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Word not found"));
+
+        // Only the word's author may edit it; client-supplied nextWord rewiring is not accepted,
+        // since relinking arbitrary words corrupts the chain the repagination cron walks.
+        if (existingWord.getAuthor() == null
+                || !existingWord.getAuthor().getUsername().equals(username)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only edit your own words.");
+        }
+
+        existingWord.setContent(wordDetails.getContent());
+        return wordRepository.save(existingWord);
     }
 
     @Transactional
@@ -264,8 +271,10 @@ public class WordService {
             i++;
         }
         // Only check the first word if nextPage actually exists
-        if (nextPage != null && nextPage.getFirstWord() != null
-                && !nextPage.getFirstWord().equals(nextWord)) {
+        // Compare by ID: nextWord may be an uninitialized lazy proxy, which is never
+        // identity-equal to the eagerly loaded firstWord entity.
+        if (nextWord != null && nextPage != null && nextPage.getFirstWord() != null
+                && !Objects.equals(nextPage.getFirstWord().getId(), nextWord.getId())) {
             nextWordNodeDto = new WordNodeDto(
                     nextWord.getId(),
                     nextWord.getContent(),
@@ -316,5 +325,15 @@ public class WordService {
     public boolean hasEnoughDeleteCredits(Author author, Long creditsRequired) {
         // System.out.println(author.getUsername() + " spent " + author.getCreditsSpent() + " credits.");
         return reactionRepository.countLikesMinusDislikes(author.getId()) - author.getCreditsSpent() >= creditsRequired;
+    }
+
+    /*
+    The frontend already blocks words containing whitespace; this guards the API itself.
+    Null passes through so an empty submission keeps failing the same way it did before.
+    */
+    private static void validateNoWhitespace(@Nullable String content) {
+        if (content != null && content.matches(".*\\s.*")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, WHITESPACE_ERROR);
+        }
     }
 }

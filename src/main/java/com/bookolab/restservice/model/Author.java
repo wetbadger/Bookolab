@@ -1,6 +1,8 @@
 package com.bookolab.restservice.model;
 
 import com.bookolab.restservice.enums.Role;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import org.jspecify.annotations.Nullable;
 import org.springframework.security.core.GrantedAuthority;
@@ -12,6 +14,7 @@ import java.util.Collection;
 import java.util.List;
 
 @Entity
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Author implements UserDetails {
     @Id
     @GeneratedValue
@@ -54,29 +57,36 @@ public class Author implements UserDetails {
         return username;
     }
 
+    // Never expose the password hash in JSON responses; Spring Security still
+    // calls this method directly during authentication.
     @Override
+    @JsonIgnore
     public @Nullable String getPassword() {
         return password;
     }
 
     // Dynamic authorities based on the user's assigned role
     @Override
+    @JsonIgnore
     public Collection<? extends GrantedAuthority> getAuthorities() {
         // Spring Security expects roles to start with "ROLE_"
         return List.of(new SimpleGrantedAuthority("ROLE_" + this.role.name()));
     }
 
     @Override
+    @JsonIgnore
     public boolean isAccountNonExpired() {
         return UserDetails.super.isAccountNonExpired();
     }
 
     @Override
+    @JsonIgnore
     public boolean isAccountNonLocked() {
         return UserDetails.super.isAccountNonLocked();
     }
 
     @Override
+    @JsonIgnore
     public boolean isCredentialsNonExpired() {
         return UserDetails.super.isCredentialsNonExpired();
     }
