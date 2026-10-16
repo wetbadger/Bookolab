@@ -7,6 +7,7 @@ import com.bookolab.restservice.service.WordService;
 import org.jspecify.annotations.NullMarked;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -49,24 +50,24 @@ public class WordController {
             @RequestParam(required = true) String localId,
             @RequestParam(required = false) Long previousWordId,
             @RequestParam(required = false) String previousLocalId,
-            @RequestParam(required = false) String authorName
-            
+            Authentication authentication
+
     ) throws InterruptedException {
         // System.out.println(String.format("Word being created... content: %s localId: %s previousWordId: %d previousLocalId: %s", word, localId, previousWordId, previousLocalId));
         Thread.sleep(1000);
-        return wordService.createWord(word, currentPageId, localId, previousWordId, previousLocalId, authorName);
+        return wordService.createWord(word, currentPageId, localId, previousWordId, previousLocalId, authentication.getName());
     }
 
     @PutMapping("/{id}")
-    public Word updateWord(@PathVariable Long id, @RequestBody Word wordDetails) {
-        return wordService.updateWord(id, wordDetails);
+    public Word updateWord(@PathVariable Long id, @RequestBody Word wordDetails, Authentication authentication) {
+        return wordService.updateWord(id, wordDetails, authentication.getName());
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteWord(@PathVariable Long id,
                                            @RequestParam(required = true) Long currentPageId,
-                                           @RequestParam(required = false) String authorName) {
-        wordService.deleteWord(id, currentPageId, authorName);
+                                           Authentication authentication) {
+        wordService.deleteWord(id, currentPageId, authentication.getName());
         return ResponseEntity.noContent().build();
     }
 

@@ -51,7 +51,7 @@ public class SecurityConfiguration {
                         .requestMatchers("/error").permitAll()
                         .requestMatchers("/gs-guide-websocket/**").permitAll()
                         .requestMatchers("/auth/**").permitAll()
-                        .requestMatchers("/api/words/**").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/words/**").permitAll()
                         .requestMatchers("/api/authors/**").permitAll()
                         .requestMatchers("/api/leaderboard").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/pages/**").permitAll()

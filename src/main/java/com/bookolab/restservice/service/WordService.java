@@ -214,20 +214,20 @@ public class WordService {
     }
 
     @Transactional
-    public Word updateWord(Long id, Word wordDetails) {
+    public Word updateWord(Long id, Word wordDetails, String username) {
         validateNoWhitespace(wordDetails.getContent());
-        return wordRepository.findById(id)
-                .map(existingWord -> {
-                    existingWord.setContent(wordDetails.getContent());
-                    
-                    // Map the nextWord relationship safely
-                    if (wordDetails.getNextWord() != null) {
-                        existingWord.setNextWord(wordDetails.getNextWord());
-                    }
-                    
-                    return wordRepository.save(existingWord);
-                })
+        Word existingWord = wordRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Word not found"));
+
+        // Only the word's author may edit it; client-supplied nextWord rewiring is not accepted,
+        // since relinking arbitrary words corrupts the chain the repagination cron walks.
+        if (existingWord.getAuthor() == null
+                || !existingWord.getAuthor().getUsername().equals(username)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only edit your own words.");
+        }
+
+        existingWord.setContent(wordDetails.getContent());
+        return wordRepository.save(existingWord);
     }
 
     @Transactional
