@@ -16,7 +16,17 @@ public class Word {
     @Column(nullable = false, length = 30)
     private String content;
 
-    @OneToOne(cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+    /*
+    Mapped as a lazy @ManyToOne rather than @OneToOne: JPA @OneToOne is EAGER by default and
+    cannot be made lazy without bytecode enhancement, so loading any word used to recursively
+    load the entire rest of the chain (StackOverflowError once the chain grew past ~1,500 words).
+    The database schema is identical (a single next_word_id column).
+
+    No cascade either: a PERSIST/MERGE cascade on nextWord makes Hibernate's flush recursively
+    cascade down the whole chain, which overflows the stack on long pages as well. Every writer
+    already assigns an already-managed Word here, so cascading is unnecessary.
+    */
+    @ManyToOne(fetch = FetchType.LAZY)
     private Word nextWord;
 
     @ManyToOne(fetch = FetchType.LAZY)

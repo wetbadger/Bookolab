@@ -254,8 +254,7 @@ public class PageService {
     @Transactional
     public void globalTruncateAndRepaginate(int maxCharacters) {
         // 1. Find the absolute head of the entire database text chain FIRST
-        Word currentWord = wordRepository.findAll().stream()
-                .filter(w -> wordRepository.findByNextWord(w).isEmpty())
+        Word currentWord = wordRepository.findChainHeads().stream()
                 .findFirst()
                 .orElse(null);
 

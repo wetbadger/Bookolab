@@ -10,6 +10,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Controller;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.bookolab.restservice.dto.DeletionResult;
 import com.bookolab.restservice.dto.WordNodeDto;
@@ -42,6 +43,11 @@ public class WordWebSocketController {
     @Autowired
     private SlurDetector slurDetector;
 
+    /*
+    Transactional so the lazy nextWord proxy on savedDatabaseWord can still be resolved
+    below; this handler runs on a STOMP thread where open-in-view does not apply.
+    */
+    @Transactional
     @MessageMapping("/send-word")
     public void handleNewWordBroadcast(Map<String, Object> payload, java.security.Principal principal) throws InterruptedException {
         String username = validateAndGetUsername(principal, "an edit");

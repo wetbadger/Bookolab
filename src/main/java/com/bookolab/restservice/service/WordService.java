@@ -153,7 +153,10 @@ public class WordService {
             }
             // Case 2: We are inserting a word right at the beginning of this page
             // (i.e., the previous word belonged to the prior page, and this page's old first word is now our next word)
-            else if (Objects.equals(currentPage.getFirstWord(), savedWord.getNextWord())) {
+            // Compare by ID: savedWord.getNextWord() may be an uninitialized lazy proxy, which is
+            // never identity-equal to the eagerly loaded firstWord entity.
+            else if (currentPage.getFirstWord() != null && savedWord.getNextWord() != null
+                    && Objects.equals(currentPage.getFirstWord().getId(), savedWord.getNextWord().getId())) {
                 currentPage.setFirstWord(savedWord);
             }
             // Case 3: We are appending to the very end of this page
@@ -264,8 +267,10 @@ public class WordService {
             i++;
         }
         // Only check the first word if nextPage actually exists
-        if (nextPage != null && nextPage.getFirstWord() != null
-                && !nextPage.getFirstWord().equals(nextWord)) {
+        // Compare by ID: nextWord may be an uninitialized lazy proxy, which is never
+        // identity-equal to the eagerly loaded firstWord entity.
+        if (nextWord != null && nextPage != null && nextPage.getFirstWord() != null
+                && !Objects.equals(nextPage.getFirstWord().getId(), nextWord.getId())) {
             nextWordNodeDto = new WordNodeDto(
                     nextWord.getId(),
                     nextWord.getContent(),
